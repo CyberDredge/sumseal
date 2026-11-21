@@ -15,6 +15,7 @@ Zero-dependency Python library and CLI that records a manifest (SHA-256, size, t
 - Stay inside `C:\evidex`. Do not touch any folder outside C:\evidex.
 - Keep it small. If something is not in SPEC.md, ask before adding it.
 - **CI budget.** While the repo is private, CI is one Linux job on Python 3.12 only. No Windows or macOS runners, no version matrix, no larger runners, no scheduled workflows, until the owner flips the repo public. Always run the full `pytest` locally before asking to push, because GitHub Actions minutes may be used up and CI may not run. Do not open PRs; the owner pushes straight to `main` after approving.
+- **Branch protection.** A GitHub ruleset on `main` (set by the owner on 2026-11-21) blocks force pushes and deletion. It does not require pull requests or status checks. Never force-push or try to get around it. If a history rewrite is ever truly needed, ask the owner, who switches the ruleset off for that push and back on afterwards.
 
 ## Commands (PowerShell, from C:\evidex)
 ```

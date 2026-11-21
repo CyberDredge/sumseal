@@ -13,6 +13,14 @@ Record exactly which files you collected and what state they were in, then prove
 - evidex does neither. It is a small integrity manifest for files you already have, from any source.
 - Recheck prior art once more before the public launch. This was a quick search, not a survey.
 
+Recheck 2026-11-21 (after step 6; generic web searches, read from result summaries, not a full survey):
+
+- Folder hash-and-audit tools already exist: `hashdeep` audit mode (fails on changed, new or missing files), `sha256sum -c` (does not report new files), BagIt and bagit-python (archival packages with checksum manifests), cataloger (reports missing, extra and mismatched files), summain (manifests compared with diff), and filepack (BLAKE3).
+- Closest overlap: blazehash, an open-source Rust CLI that is hashdeep-compatible, supports SHA-256 and BLAKE3, can sign manifests with Ed25519 and makes an HTML chain-of-custody report.
+- CaseCapture's validation tool checks only CaseCapture's own capture packages (SHA-256, reports missing, modified and unexpected files).
+- What evidex still adds: standard library only and small enough to audit in one sitting; a per-file source record (URL, access time, note); strict fail-closed rules (special files, case and Unicode collisions, unreadable input, strict manifest loading); a canonical manifest digest meant to be anchored outside the folder; plain-language results. It does not do signing (non-goal for v1) or archive packaging.
+- Do not claim evidex is the only or first tool of its kind. Position it as a small, strict, dependency-free integrity manifest with source records.
+
 ## Goals
 
 1. `create` a manifest of a folder: path, size, SHA-256, file modified time, time hashed.

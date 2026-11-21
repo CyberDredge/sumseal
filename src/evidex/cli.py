@@ -6,6 +6,7 @@ import argparse
 import sys
 from collections.abc import Sequence
 
+from . import __version__
 from .manifest import EvidexError, add_source, create, load_manifest, manifest_digest
 from .report import render_csv, render_markdown
 from .verify import PROBLEMS, RESULTS, verify
@@ -19,7 +20,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="evidex",
         description="Record a SHA-256 manifest of a folder of files and verify it later.",
+        epilog=(
+            "Exit codes: 0 everything OK, 1 problems found, 2 usage or input error. "
+            "evidex records file integrity only; it does not prove who made a file "
+            "or that its content is genuine."
+        ),
     )
+    parser.add_argument("--version", action="version", version=f"evidex {__version__}")
     commands = parser.add_subparsers(dest="command", required=True, metavar="COMMAND")
 
     create_cmd = commands.add_parser(

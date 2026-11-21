@@ -1,0 +1,9 @@
+# Keeps the GitHub Actions used by CI up to date. Monthly, to keep noise and
+# Actions usage low. evidex has no runtime dependencies to update.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 2

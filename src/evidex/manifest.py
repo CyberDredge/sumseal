@@ -113,8 +113,10 @@ def _join(parent: str, name: str) -> str:
     return f"{parent}/{name}" if parent else name
 
 
-def _excluded(rel_path: str, patterns: Sequence[str]) -> bool:
-    return any(fnmatch.fnmatchcase(rel_path, pattern) for pattern in patterns)
+def _excluded(rel_path: str, patterns: Sequence[str], matched: set[str]) -> bool:
+    hits = [pattern for pattern in patterns if fnmatch.fnmatchcase(rel_path, pattern)]
+    matched.update(hits)
+    return bool(hits)
 
 
 def _reason(exc: BaseException) -> str:
@@ -140,6 +142,7 @@ class Scan:
         self.special: list[dict[str, str]] = []  # {"path", "kind"}
         self.problems: list[str] = []  # names that cannot be recorded (always fatal)
         self.unreadable: list[tuple[str, str]] = []  # (path, reason); "" is the root
+        self.matched_patterns: set[str] = set()  # exclude patterns that matched something
 
 
 def scan_folder(root: str, patterns: Sequence[str]) -> Scan:
@@ -166,7 +169,7 @@ def _scan_dir(dir_os: str, dir_rel: str, patterns: Sequence[str], scan: Scan) ->
             scan.problems.append(f"{shown}: file name is not valid UTF-8")
             continue
         rel = _join(dir_rel, unicodedata.normalize("NFC", entry.name))
-        if not _excluded(rel, patterns):
+        if not _excluded(rel, patterns, scan.matched_patterns):
             kept.append((entry, rel))
 
     for group in find_collisions(entry.name for entry, _ in kept):
@@ -207,11 +210,13 @@ def build_manifest(
     case_id: str | None = None,
     excludes: Sequence[str] = (),
     skip_special: bool = False,
+    notes: list[str] | None = None,
 ) -> dict[str, Any]:
     """Scan and hash ``folder`` and return the manifest as a dict.
 
     Raises EvidexError (with every problem listed) instead of returning a
-    partial manifest.
+    partial manifest. Harmless observations (an exclude that matched nothing)
+    are appended to ``notes`` when a list is given.
     """
     absolute = os.path.abspath(folder)
     if not os.path.isdir(absolute):
@@ -231,13 +236,13 @@ def build_manifest(
     scan = scan_folder(absolute, patterns)
 
     if scan.problems or scan.unreadable:
-        details = scan.problems + [f"{rel or '.'}: {why}" for rel, why in scan.unreadable]
+        details = scan.problems + [f"{_shown(rel or '.')}: {why}" for rel, why in scan.unreadable]
         raise EvidexError("cannot create a manifest; no manifest written", details)
     if scan.special and not skip_special:
         raise EvidexError(
             "found symlinks or special files; no manifest written. "
             "Use --skip-special to record them in 'skipped' and leave them out",
-            [f"{item['path']} ({item['kind']})" for item in scan.special],
+            [f"{_shown(item['path'])} ({item['kind']})" for item in scan.special],
         )
     if not scan.files:
         raise EvidexError(f"no files to record in {root_name}; no manifest written")
@@ -249,7 +254,7 @@ def build_manifest(
             mtime = format_utc(os.stat(path).st_mtime_ns // 1_000_000_000)
             sha256, size = hash_file(path)
         except (OSError, ValueError, OverflowError) as exc:
-            unreadable.append(f"{rel}: cannot read ({_reason(exc)})")
+            unreadable.append(f"{_shown(rel)}: cannot read ({_reason(exc)})")
             continue
         entries.append(
             {
@@ -262,6 +267,11 @@ def build_manifest(
         )
     if unreadable:
         raise EvidexError("unreadable files; no manifest written", unreadable)
+    if notes is not None:
+        for original, pattern in zip(excludes, patterns):
+            if pattern not in scan.matched_patterns:
+                hint = " (use / between folders)" if "\\" in original else ""
+                notes.append(f"--exclude {_shown(original)} matched nothing{hint}")
 
     manifest: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
@@ -291,13 +301,23 @@ def write_manifest(manifest: dict[str, Any], out: str | os.PathLike[str]) -> str
     data = pretty_text(manifest).encode("utf-8")
     digest = manifest_digest(manifest)
     try:
-        with open(out, "xb") as handle:
-            handle.write(data)
+        handle = open(out, "xb")
     except FileExistsError:
         raise EvidexError(
             f"output file already exists, not overwriting: {os.fspath(out)}"
         ) from None
     except OSError as exc:
+        raise EvidexError(f"cannot write {os.fspath(out)} ({_reason(exc)})") from None
+    try:
+        with handle:
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+    except OSError as exc:
+        try:
+            os.unlink(out)  # we created it, so a partial file is ours to remove
+        except OSError:
+            pass
         raise EvidexError(f"cannot write {os.fspath(out)} ({_reason(exc)})") from None
     return digest
 
@@ -310,6 +330,7 @@ def create(
     excludes: Sequence[str] = (),
     skip_special: bool = False,
     out: str | os.PathLike[str] | None = None,
+    notes: list[str] | None = None,
 ) -> tuple[Path, str, dict[str, Any]]:
     """Build and write a manifest. Returns (output path, digest, manifest)."""
     manifest = build_manifest(
@@ -318,6 +339,7 @@ def create(
         case_id=case_id,
         excludes=excludes,
         skip_special=skip_special,
+        notes=notes,
     )
     out_path = Path(out) if out is not None else default_output_path(folder)
     digest = write_manifest(manifest, out_path)
@@ -515,6 +537,7 @@ def replace_manifest(manifest: dict[str, Any], path: str | os.PathLike[str]) -> 
             handle.write(data)
             handle.flush()
             os.fsync(handle.fileno())
+        os.chmod(handle.name, stat.S_IMODE(os.stat(target).st_mode))
         os.replace(handle.name, target)
     except OSError as exc:
         try:

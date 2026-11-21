@@ -20,6 +20,7 @@ Include what you ran, what you expected, what happened, and the evidex version (
 - Someone who can change both the folder and the manifest, when you have not anchored the digest elsewhere. They can simply make a new manifest.
 - Anything about who created a file or whether its content is genuine. evidex records integrity only.
 - Changes that happened before the manifest was created.
+- Someone swapping files in the folder while evidex is running (for example replacing a file with a link between the folder scan and the hash). Record and verify folders that are not being changed at the same time.
 - Weaknesses in SHA-256 itself (none practical are known today).
 
 ## Design choices that matter for security

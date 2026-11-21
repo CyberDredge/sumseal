@@ -216,7 +216,7 @@ def test_excluded_files_are_not_new_on_verify(tmp_path, capsys):
 
 def test_colliding_names_at_verify_are_error(tmp_path, capsys):
     folder = created(tmp_path, capsys)
-    make(folder, {"café.txt": b"1", "café.txt": b"2"})
+    make(folder, {"caf\u00e9.txt": b"1", "cafe\u0301.txt": b"2"})
     if sum(name.startswith("caf") for name in os.listdir(folder)) != 2:
         pytest.skip("filesystem normalizes names, cannot hold both")
     code, out, err = run(capsys, "verify", folder)
@@ -228,13 +228,13 @@ def test_colliding_names_at_verify_are_error(tmp_path, capsys):
 
 
 def test_invisible_characters_are_printed_escaped(tmp_path, capsys):
-    name = "report‮txt.exe"  # right-to-left override
+    name = "report\u202etxt.exe"  # right-to-left override
     folder = created(tmp_path, capsys, files={name: b"abc"})
     (folder / name).write_bytes(b"abd")
     code, out, err = run(capsys, "verify", folder)
     assert code == 1
     assert line("CHANGED", "'report\\u202etxt.exe'", "content differs, same size") in out
-    assert "‮" not in out
+    assert "\u202e" not in out
 
 
 # Rows: --manifest, Invalid or missing manifest --------------------------------------------
@@ -295,7 +295,7 @@ DICT_MUTATIONS = {
     "mtime-missing": _set_file("mtime_utc", None),
     "path-parent": _set_file("path", "sub/../a.txt"),
     "path-absolute": _set_file("path", "/a.txt"),
-    "path-nfd": _set_file("path", unicodedata.normalize("NFD", "café.txt")),
+    "path-nfd": _set_file("path", unicodedata.normalize("NFD", "caf\u00e9.txt")),
     "duplicate-path": _duplicate_path,
 }
 

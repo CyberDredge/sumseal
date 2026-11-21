@@ -44,6 +44,6 @@ Requires Python 3.11 or newer.
 - Step 3 (`verify`, results and exit codes): done 2026-11-21, committed locally.
 - Step 4 (`add-source`, `digest`, `report`): done 2026-11-21. Windows 127 passed, 7 skipped; Linux (WSL Ubuntu, Python 3.12) 133 passed, 1 skipped. Committed.
 - Step 5 (README, SECURITY.md, CHANGELOG, LICENSE, demo, CI, CLI polish): done 2026-11-21, committed and pushed. Dependabot removed afterwards, to be added at the public flip.
-- Step 6: not started.
+- Step 6 (self-review, hygiene tests, dogfood run): done 2026-11-21. Windows 169 passed, 10 skipped; Linux 178 passed, 1 skipped (warnings as errors). Not committed yet, waiting for owner approval.
 - Linux test run (from PowerShell): `wsl -d Ubuntu -e sh -c 'cd /mnt/c/evidex && PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src ~/.venvs/evidex-test/bin/python -m pytest -q -p no:cacheprovider'`
-- Next: owner approves the step 5 commit (then push), and says "go" for step 6 (self-review, hygiene tests, dogfood run on the owner's own non-case files).
+- Next: owner approves the step 6 commit (then push). Remaining for v1 (Definition of done): recheck prior art, CI green on 3.11 to 3.13 on Linux and Windows after the public flip, and the release steps, all with owner approval.

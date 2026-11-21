@@ -48,7 +48,7 @@ def manifest_file(tmp_path):
     folder = tmp_path / "case"
     folder.mkdir()
     (folder / "a.txt").write_bytes(b"abc")
-    (folder / "été.txt").write_bytes(b"summer")
+    (folder / "\u00e9t\u00e9.txt").write_bytes(b"summer")
     out_path, _, _ = create(folder, collector=COLLECTOR, case_id="CASE-001")
     return out_path
 
@@ -109,11 +109,11 @@ def test_markdown_report_contents():
 
 
 def test_markdown_report_escapes_special_characters():
-    manifest = sample(files=[entry("a|b*c_[d]<e>`f`#g.txt"), entry("evil‮txt.exe")])
+    manifest = sample(files=[entry("a|b*c_[d]<e>`f`#g.txt"), entry("evil\u202etxt.exe")])
     text = render_markdown(manifest)
     assert "| a\\|b\\*c\\_\\[d\\]\\<e\\>\\`f\\`\\#g.txt |" in text
     assert "'evil\\\\u202etxt.exe'" in text
-    assert "‮" not in text
+    assert "\u202e" not in text
 
 
 def test_markdown_report_without_case_or_skipped():
@@ -157,7 +157,7 @@ def test_report_cli_writes_utf8(manifest_file, capsysbinary, fmt):
     out, err = capsysbinary.readouterr()
     assert code == 0, err
     text = out.decode("utf-8")  # strict: fails if anything was not UTF-8
-    assert "été.txt" in text
+    assert "\u00e9t\u00e9.txt" in text
     assert ("# evidex manifest report" in text) == (fmt == "md")
 
 

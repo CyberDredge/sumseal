@@ -30,7 +30,7 @@ def case(tmp_path, capsys):
     (folder / "sub").mkdir(parents=True)
     (folder / "a.txt").write_bytes(b"abc")
     (folder / "sub" / "b.txt").write_bytes(b"bravo")
-    (folder / "café.txt").write_bytes(b"coffee")
+    (folder / "caf\u00e9.txt").write_bytes(b"coffee")
     code, out, err = run(capsys, "create", folder, "--collector", COLLECTOR)
     assert code == 0, err
     return folder, tmp_path / "case.evidex.json"
@@ -84,10 +84,10 @@ def test_add_source_records_source(case, capsys):
 
 def test_add_source_without_note_and_with_nfd_path(case, capsys):
     folder, manifest = case
-    nfd = unicodedata.normalize("NFD", "café.txt")
+    nfd = unicodedata.normalize("NFD", "caf\u00e9.txt")
     code, out, err = run(capsys, "add-source", manifest, nfd, URL, "--accessed", WHEN)
     assert code == 0, err
-    entry = next(e for e in load(manifest)["files"] if e["path"] == "café.txt")
+    entry = next(e for e in load(manifest)["files"] if e["path"] == "caf\u00e9.txt")
     assert entry["source"] == {"url": URL, "accessed_utc": WHEN}
 
 
@@ -156,7 +156,7 @@ def test_existing_source_is_never_overwritten(case, capsys):
         ("", WHEN, []),
         ("example.com/page", WHEN, []),
         ("https://example.com/a b", WHEN, []),
-        ("https://example.com/​hidden", WHEN, []),
+        ("https://example.com/\u200bhidden", WHEN, []),
         (URL, "2026-01-02", []),
         (URL, "2026-01-02T03:04:05+00:00", []),
         (URL, "2026-01-02 03:04:05Z", []),
@@ -224,3 +224,15 @@ def test_add_source_bad_arguments_exit_2(case, capsys, args):
     places = {"{manifest}": str(manifest), "{missing}": str(manifest.parent / "missing.json")}
     code, out, err = run(capsys, *[places.get(a, a) for a in args])
     assert code == 2
+
+
+# Row: add-source keeps the manifest's permissions (POSIX only) ----------------------
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX permissions only")
+@pytest.mark.parametrize("mode", [0o644, 0o640, 0o600])
+def test_add_source_keeps_file_mode(case, capsys, mode):
+    folder, manifest = case
+    manifest.chmod(mode)
+    assert run(capsys, "add-source", manifest, "a.txt", URL, "--accessed", WHEN)[0] == 0
+    assert manifest.stat().st_mode & 0o777 == mode

@@ -394,3 +394,44 @@ def test_bad_arguments_exit_2(tmp_path, capsys, args):
     assert code == 2
     assert not manifest_path(folder).exists()
     assert err
+
+
+# Rows: self-review fixes (step 6) -------------------------------------------------
+
+
+def test_exclude_that_matches_nothing_is_noted(tmp_path, capsys):
+    folder = make(tmp_path / "f", {"a.txt": b"abc", "sub/b.tmp": b"x"})
+    code, out, err = run(
+        capsys, "create", folder, "--collector", COLLECTOR,
+        "--exclude", "sub/*.tmp", "--exclude", "nothing-*.xyz", "--exclude", "sub\\*.tmp",
+    )
+    assert code == 0, err
+    assert "note: --exclude nothing-*.xyz matched nothing" in out
+    assert "note: --exclude sub\\*.tmp matched nothing (use / between folders)" in out
+    assert "--exclude sub/*.tmp matched nothing" not in out
+    # All globs are still recorded exactly as given.
+    assert load(manifest_path(folder))["excludes"] == ["sub/*.tmp", "nothing-*.xyz", "sub\\*.tmp"]
+
+
+def test_invisible_characters_in_create_errors_are_escaped(tmp_path, capsys):
+    folder = make(tmp_path / "f", {"real.txt": b"abc"})
+    symlink_or_skip(folder / "real.txt", folder / "link\u202etxt.exe")
+    code, out, err = run(capsys, "create", folder, "--collector", COLLECTOR)
+    assert code == 2
+    assert "'link\\u202etxt.exe' (symlink)" in err
+    assert "\u202e" not in err
+
+
+def test_failed_write_leaves_no_partial_manifest(tmp_path, capsys, monkeypatch):
+    import evidex.manifest as manifest_module
+
+    folder = make(tmp_path / "f", {"a.txt": b"abc"})
+
+    def disk_full(fd):
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(manifest_module.os, "fsync", disk_full)
+    code, out, err = run(capsys, "create", folder, "--collector", COLLECTOR)
+    assert code == 2
+    assert "No space left on device" in err
+    assert not manifest_path(folder).exists()

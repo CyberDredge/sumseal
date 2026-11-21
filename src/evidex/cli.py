@@ -93,6 +93,7 @@ def show(name: str) -> str:
 
 
 def _cmd_create(args: argparse.Namespace) -> int:
+    notes: list[str] = []
     out_path, digest, manifest = create(
         args.folder,
         collector=args.collector,
@@ -100,13 +101,16 @@ def _cmd_create(args: argparse.Namespace) -> int:
         excludes=args.exclude,
         skip_special=args.skip_special,
         out=args.out,
+        notes=notes,
     )
+    for note in notes:
+        print(f"note: {note}")
     print(f"Recorded {len(manifest['files'])} files from {show(manifest['root_name'])}")
     if manifest["skipped"]:
         print(f"Skipped {len(manifest['skipped'])} special items (listed in the manifest)")
     if manifest["excludes"]:
         print("Excluded: " + ", ".join(manifest["excludes"]))
-    print(f"Manifest: {out_path}")
+    print(f"Manifest: {show(str(out_path))}")
     print(f"Manifest digest (sha256): {digest}")
     print("Anchor this digest somewhere outside the folder.")
     return EXIT_OK
@@ -114,7 +118,7 @@ def _cmd_create(args: argparse.Namespace) -> int:
 
 def _cmd_verify(args: argparse.Namespace) -> int:
     report = verify(args.folder, args.manifest)
-    print(f"Manifest: {report.manifest_path}")
+    print(f"Manifest: {show(str(report.manifest_path))}")
     print(f"Manifest digest (sha256): {report.digest}")
     print("Compare this digest with the one you anchored when the manifest was made.")
     problems = [f for f in report.findings if f.result in PROBLEMS]

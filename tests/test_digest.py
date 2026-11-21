@@ -17,7 +17,7 @@ SAMPLE = {
     "skipped": [],
     "files": [
         {
-            "path": "notes/café.txt",
+            "path": "notes/caf\u00e9.txt",
             "size": 3,
             "sha256": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
             "mtime_utc": "2026-01-01T00:00:00Z",
@@ -58,7 +58,7 @@ def test_content_change_changes_digest():
 
 def test_canonical_form_is_exact():
     # Pins the SPEC.md definition: sorted keys, no spaces, raw UTF-8 (no \u escapes).
-    assert canonical_bytes({"b": 1, "a": "café", "c": [2, {"z": 0, "y": None}]}) == (
+    assert canonical_bytes({"b": 1, "a": "caf\u00e9", "c": [2, {"z": 0, "y": None}]}) == (
         b'{"a":"caf\xc3\xa9","b":1,"c":[2,{"y":null,"z":0}]}'
     )
 

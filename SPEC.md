@@ -38,7 +38,9 @@ Fields: `schema_version`, `tool_version`, `created_utc`, `collector`, `case_id` 
 Each entry in `files`: `path` (POSIX style, relative, NFC-normalized), `size`, `sha256` (lowercase hex), `mtime_utc`, `hashed_utc`, and optionally `source` (`url`, `accessed_utc`, `note`).
 
 - `files` sorted by `path` (UTF-8 byte order).
-- All times are UTC, ISO 8601, ending in `Z`.
+- Each entry in `skipped`: `path` and `kind` (`symlink`, `reparse_point` or `other`), sorted by `path` (UTF-8 byte order).
+- `excludes` lists the globs exactly as given. Each glob is matched case-sensitively (`fnmatch.fnmatchcase`) against the relative POSIX path of every file and folder; `*` also matches `/`. A matching folder is left out whole.
+- All times are UTC, ISO 8601, whole seconds, ending in `Z`.
 - **Manifest digest** = SHA-256 of the canonical form: `json.dumps(manifest, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False)` encoded as UTF-8. NaN and Infinity are rejected with an error, never written. Reformatting the file on disk never changes the digest.
 - The file on disk is pretty-printed (2-space indent) for humans.
 
@@ -70,8 +72,10 @@ A changed modified time alone is a printed note, not a failure (copying files ch
 
 ## Fail closed (never guess, never skip silently)
 
-- Symlinks and non-regular files make `create` stop with a list, unless `--skip-special` is given. Skipped items are then recorded in `skipped`.
+- Symlinks and non-regular files make `create` stop with a list, unless `--skip-special` is given. Skipped items are then recorded in `skipped`. On Windows, every reparse point (junctions, mount points, cloud placeholder files) counts as special. Links are never followed.
 - Unreadable file: `create` stops, writes no manifest.
+- File names that are not valid UTF-8: error.
+- `create` never overwrites an existing manifest file.
 - Paths that collide after case-folding or NFC/NFD normalization: error.
 - Empty folder: error.
 - No implicit ignores. Hidden files are included. Exclusions are explicit and recorded in the manifest.
@@ -100,6 +104,12 @@ A changed modified time alone is a printed note, not a failure (copying files ch
 | `--exclude` | files left out and the glob recorded |
 | mtime-only change | note printed, exit 0 |
 | Bad arguments | exit 2 |
+| Create on a normal folder | manifest next to the folder; all files (hidden included) with relative NFC POSIX paths in UTF-8 byte order; digest printed; exit 0 |
+| Junction or other reparse point (Windows only) | treated like a symlink |
+| FIFO or other non-regular file (POSIX only) | error without `--skip-special`, recorded in `skipped` with it |
+| Unreadable file during `create` (POSIX only, skipped on Windows) | error, no manifest |
+| File name not valid UTF-8 (Linux only) | error, no manifest |
+| Output file already exists | error, existing file untouched |
 
 Every behavior change needs a row here and a test.
 
@@ -153,3 +163,4 @@ evidex records and checks file integrity. It does not prove who created a file o
 
 - 2026-11-21, step 1: Added the scaffold (`pyproject.toml` with setuptools build backend, no runtime deps, `pytest` as the only dev extra; `.gitignore`), `src/evidex/__init__.py` (`__version__ = "0.1.0.dev0"`), `hashing.py` (`hash_file` returns hex SHA-256 and the byte count actually read, 1 MiB chunks, OSError propagates, no skipping) and `manifest.py` (`canonical_bytes` exactly as specified, `manifest_digest`, `pretty_text` with 2-space indent). Tests cover the rows "Empty file", "File containing `abc`" and "Reformatted manifest on disk", plus chunk-boundary and exact-canonical-form checks. `cli.py`, `__main__.py`, `verify.py`, `report.py`, LICENSE and README come in their own steps. `readme` left out of `pyproject.toml` until README.md exists (step 5).
 - 2026-11-21, step 1 pre-push changes (owner request): version set to `0.1.0.dev0`; build requires `setuptools>=77` (needed for the SPDX `license = "MIT"` string); `.gitattributes` added with `* text=auto eol=lf`; `canonical_bytes` now passes `allow_nan=False`, so NaN and Infinity raise `ValueError` (new test-table row and test); removed an owner open item; CLAUDE.md now says "Do not touch any folder outside C:\evidex" instead of listing other project paths.
+- 2026-11-21, step 2: Added `create` in `manifest.py` (`build_manifest`, `write_manifest`, `create`, `find_collisions`), a CLI with only the `create` command so far (`cli.py`, `__main__.py`, `evidex` console script). It checks everything before hashing and reports all problems at once; no partial manifest is ever written. Collisions are checked per folder level on NFC-then-casefold keys, so `Docs/` vs `docs/` is caught too. Note: full Unicode case-folding also flags pairs like `straße` and `STRASSE`, which is the fail-closed choice. Decisions the spec left open: `skipped` entries are `{path, kind}`; exclude globs use `fnmatchcase` on the relative POSIX path and prune matching folders; times are whole seconds; Windows reparse points count as special (stops junctions from pulling in files from outside the folder); file names that are not valid UTF-8 are an error; `create` refuses to overwrite an existing manifest (opened with exclusive create). New test-table rows for each. On this Windows machine 41 tests pass and 5 skip (FIFO, unreadable file, undecodable name, and two case-collision-on-disk tests need Linux or a case-sensitive filesystem); CI on Linux will run them.

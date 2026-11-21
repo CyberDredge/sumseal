@@ -38,6 +38,7 @@ Requires Python 3.11 or newer.
 - End every session with a short recap in this exact shape: **Done / Not done / Needs approval / Next step.** Keep it plain, not clinical. Include exact paths and the commit hash if one was made.
 
 ## Build status (update at the end of each session)
-- Step 1 (scaffold, hashing core, canonical JSON and digest): done 2026-11-21, tests green locally (Python 3.13, Windows), including the owner's pre-push changes. Committed locally, not pushed.
-- Steps 2 to 6: not started.
-- Next: owner pushes the step 1 commit when ready, then says "go" for step 2 (`create`).
+- Step 1 (scaffold, hashing core, canonical JSON and digest): done 2026-11-21, tests green locally (Python 3.13, Windows), including the owner's pre-push changes. Committed and pushed to origin/main.
+- Step 2 (`create`, collision and special-file rules): done 2026-11-21, 41 passed and 5 skipped locally (Windows; the skipped tests need Linux). Not committed yet, waiting for owner approval.
+- Steps 3 to 6: not started.
+- Next: owner reviews and approves the step 2 commit, then says "go" for step 3 (`verify`).

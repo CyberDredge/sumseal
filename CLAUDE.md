@@ -40,6 +40,7 @@ Requires Python 3.11 or newer.
 ## Build status (update at the end of each session)
 - Step 1 (scaffold, hashing core, canonical JSON and digest): done 2026-11-21, tests green locally (Python 3.13, Windows), including the owner's pre-push changes. Committed and pushed to origin/main.
 - Step 2 (`create`, collision and special-file rules): done 2026-11-21, 41 passed and 5 skipped locally (Windows; the skipped tests need Linux). Committed locally, not pushed.
-- Step 3 (`verify`, results and exit codes): done 2026-11-21, 84 passed and 7 skipped locally (Windows; the skipped tests need Linux). Not committed yet, waiting for owner approval.
+- Step 3 (`verify`, results and exit codes): done 2026-11-21, 84 passed and 7 skipped locally (Windows; the skipped tests need Linux). Committed locally, not pushed. Linux run (WSL Ubuntu, Python 3.12): 90 passed, 1 skipped (Windows-only junction test).
 - Steps 4 to 6: not started.
-- Next: owner reviews and approves the step 3 commit, then says "go" for step 4 (`add-source`, `digest`, `report`).
+- Linux test run (from PowerShell): `wsl -d Ubuntu -e sh -c 'cd /mnt/c/evidex && PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src ~/.venvs/evidex-test/bin/python -m pytest -q -p no:cacheprovider'`
+- Next: owner approves the cleanup commit, pushes when ready (GitHub Actions minutes reset 2026-12-14), then says "go" for step 4 (`add-source`, `digest`, `report`).

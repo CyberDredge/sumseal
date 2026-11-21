@@ -16,7 +16,9 @@ import json
 import os
 import re
 import stat
+import tempfile
 import unicodedata
+import urllib.parse
 from collections.abc import Iterable, Sequence
 from datetime import datetime, timezone
 from pathlib import Path
@@ -449,6 +451,126 @@ def validate_manifest(data: Any) -> list[str]:
         for key in ("mtime_utc", "hashed_utc"):
             if not _is_utc(entry.get(key)):
                 problems.append(f"{where}: {key} must be a UTC time like 2026-01-02T03:04:05Z")
-        if "source" in entry and not isinstance(entry["source"], dict):
-            problems.append(f"{where}: source must be an object when present")
+        if "source" in entry:
+            problems.extend(f"{where}: source {p}" for p in source_problems(entry["source"]))
     return problems
+
+
+def url_problem(url: Any) -> str | None:
+    """Why ``url`` cannot be recorded as a source, or None if it can."""
+    if not isinstance(url, str) or not url:
+        return "url must be a non-empty string"
+    if not url.isprintable() or any(ch.isspace() for ch in url):
+        return f"url must not contain spaces, control or invisible characters: {ascii(url)}"
+    if not urllib.parse.urlsplit(url).scheme:
+        return f"url must start with a scheme such as https: {ascii(url)}"
+    return None
+
+
+def parse_utc(value: str) -> str:
+    """Return ``value`` if it is a real UTC time like 2026-01-02T03:04:05Z, else raise."""
+    try:
+        if not _UTC.fullmatch(value):
+            raise ValueError
+        datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ")
+    except (TypeError, ValueError):
+        raise EvidexError(
+            f"time must be UTC in the form 2026-01-02T03:04:05Z, got {ascii(value)}"
+        ) from None
+    return value
+
+
+def source_problems(source: Any) -> list[str]:
+    """Problems with a ``source`` object (empty list if valid)."""
+    if not isinstance(source, dict):
+        return ["must be an object"]
+    problems = []
+    problem = url_problem(source.get("url"))
+    if problem:
+        problems.append(problem)
+    if not _is_utc(source.get("accessed_utc")):
+        problems.append("accessed_utc must be a UTC time like 2026-01-02T03:04:05Z")
+    if "note" in source and not _is_text(source["note"]):
+        problems.append("note must be a non-empty string when present")
+    return problems
+
+
+def replace_manifest(manifest: dict[str, Any], path: str | os.PathLike[str]) -> str:
+    """Atomically rewrite an existing manifest file and return the new digest.
+
+    The new content goes to a temporary file in the same folder, which then
+    replaces the old file in one step, so a crash never leaves a half-written
+    manifest.
+    """
+    problems = validate_manifest(manifest)
+    if problems:  # never write something load_manifest would reject
+        raise EvidexError("refusing to write an invalid manifest", problems)
+    data = pretty_text(manifest).encode("utf-8")
+    target = Path(path)
+    handle = tempfile.NamedTemporaryFile(
+        dir=target.parent, prefix=f".{target.name}.", suffix=".tmp", delete=False
+    )
+    try:
+        with handle:
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(handle.name, target)
+    except OSError as exc:
+        try:
+            os.unlink(handle.name)
+        except OSError:
+            pass
+        raise EvidexError(f"cannot rewrite {os.fspath(path)} ({_reason(exc)})") from None
+    return manifest_digest(manifest)
+
+
+# --- add-source ------------------------------------------------------------------
+
+
+def _shown(text: str) -> str:
+    return text if text.isprintable() else ascii(text)
+
+
+def add_source(
+    manifest_path: str | os.PathLike[str],
+    rel_path: str,
+    url: str,
+    *,
+    accessed: str,
+    note: str | None = None,
+) -> tuple[str, str]:
+    """Record where one file came from. Returns (old digest, new digest).
+
+    Refuses (EvidexError, manifest untouched) if the path is not a recorded
+    file or already has a source: an existing source is never overwritten.
+    """
+    manifest = load_manifest(manifest_path)
+    old_digest = manifest_digest(manifest)
+    problem = url_problem(url)
+    if problem:
+        raise EvidexError(problem)
+    accessed = parse_utc(accessed)
+    if note is not None and not note.strip():
+        raise EvidexError("--note must not be empty when given")
+
+    key = unicodedata.normalize("NFC", rel_path)
+    entry = next((e for e in manifest["files"] if e["path"] == key), None)
+    if entry is None:
+        if any(item["path"] == key for item in manifest["skipped"]):
+            raise EvidexError(f"{_shown(key)} is a skipped special item, not a recorded file")
+        hint = ["use / between folders, as the manifest does"] if "\\" in rel_path else []
+        raise EvidexError(f"path is not in the manifest: {_shown(rel_path)}", hint)
+    if "source" in entry:
+        existing = entry["source"]
+        raise EvidexError(
+            f"{_shown(key)} already has a source; not changing it",
+            [f"{name}: {_shown(str(existing[name]))}" for name in ("url", "accessed_utc", "note")
+             if name in existing],
+        )
+
+    source: dict[str, str] = {"url": url, "accessed_utc": accessed}
+    if note is not None:
+        source["note"] = note
+    entry["source"] = source
+    return old_digest, replace_manifest(manifest, manifest_path)

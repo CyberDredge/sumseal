@@ -38,9 +38,11 @@ Requires Python 3.11 or newer.
 - End every session with a short recap in this exact shape: **Done / Not done / Needs approval / Next step.** Keep it plain, not clinical. Include exact paths and the commit hash if one was made.
 
 ## Build status (update at the end of each session)
-- Step 1 (scaffold, hashing core, canonical JSON and digest): done 2026-11-21, tests green locally (Python 3.13, Windows), including the owner's pre-push changes. Committed and pushed to origin/main.
-- Step 2 (`create`, collision and special-file rules): done 2026-11-21, 41 passed and 5 skipped locally (Windows; the skipped tests need Linux). Committed locally, not pushed.
-- Step 3 (`verify`, results and exit codes): done 2026-11-21, 84 passed and 7 skipped locally (Windows; the skipped tests need Linux). Committed locally, not pushed. Linux run (WSL Ubuntu, Python 3.12): 90 passed, 1 skipped (Windows-only junction test).
-- Steps 4 to 6: not started.
+- History was rewritten locally on 2026-11-21 to remove personal details from every commit. GitHub still has the old first commit. The first push after the rewrite must be `git push --force-with-lease origin main`. The owner allows pushes as needed (2026-11-21). GitHub Actions minutes are used up until 2026-12-14, so CI may not run before then.
+- Step 1 (scaffold, hashing core, canonical JSON and digest): done 2026-11-21, committed locally.
+- Step 2 (`create`, collision and special-file rules): done 2026-11-21, committed locally.
+- Step 3 (`verify`, results and exit codes): done 2026-11-21, committed locally.
+- Step 4 (`add-source`, `digest`, `report`): done 2026-11-21. Windows 127 passed, 7 skipped; Linux (WSL Ubuntu, Python 3.12) 133 passed, 1 skipped. Committed.
+- Steps 5 and 6: not started.
 - Linux test run (from PowerShell): `wsl -d Ubuntu -e sh -c 'cd /mnt/c/evidex && PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src ~/.venvs/evidex-test/bin/python -m pytest -q -p no:cacheprovider'`
-- Next: owner approves the cleanup commit, pushes when ready (GitHub Actions minutes reset 2026-12-14), then says "go" for step 4 (`add-source`, `digest`, `report`).
+- Next: owner approves the step 4 commit, then says "go" for step 5 (CLI polish, README, SECURITY.md, CHANGELOG, CI).

@@ -6,7 +6,8 @@ import argparse
 import sys
 from collections.abc import Sequence
 
-from .manifest import EvidexError, create
+from .manifest import EvidexError, add_source, create, load_manifest, manifest_digest
+from .report import render_csv, render_markdown
 from .verify import PROBLEMS, RESULTS, verify
 
 EXIT_OK = 0
@@ -50,6 +51,32 @@ def build_parser() -> argparse.ArgumentParser:
     )
     verify_cmd.add_argument("folder", help="folder to check")
     verify_cmd.add_argument("--manifest", metavar="FILE", help="manifest to check against")
+
+    source_cmd = commands.add_parser(
+        "add-source",
+        help="record where one file came from",
+        description=(
+            "Record the source URL of one file already in the manifest. The manifest "
+            "is rewritten and its digest changes: anchor the digest only after your "
+            "last edit. An existing source is never overwritten."
+        ),
+    )
+    source_cmd.add_argument("manifest", help="manifest file to update")
+    source_cmd.add_argument("path", help="file path exactly as in the manifest (use /)")
+    source_cmd.add_argument("url", help="where the file came from")
+    source_cmd.add_argument("--accessed", required=True, metavar="TIME",
+                            help="when it was accessed, UTC, like 2026-01-02T03:04:05Z")
+    source_cmd.add_argument("--note", metavar="TEXT", help="optional note")
+
+    digest_cmd = commands.add_parser("digest", help="print the manifest digest")
+    digest_cmd.add_argument("manifest", help="manifest file")
+
+    report_cmd = commands.add_parser(
+        "report", help="print a readable report (UTF-8) of a manifest"
+    )
+    report_cmd.add_argument("manifest", help="manifest file")
+    report_cmd.add_argument("--format", choices=("md", "csv"), default="md",
+                            help="md (default) or csv")
     return parser
 
 
@@ -103,6 +130,41 @@ def _cmd_verify(args: argparse.Namespace) -> int:
     return EXIT_PROBLEMS
 
 
+def _cmd_add_source(args: argparse.Namespace) -> int:
+    old, new = add_source(
+        args.manifest, args.path, args.url, accessed=args.accessed, note=args.note
+    )
+    print(f"Source recorded for {show(args.path)}")
+    print(f"Previous digest (sha256):     {old}")
+    print(f"New manifest digest (sha256): {new}")
+    print("Anchor the digest only after your last edit.")
+    return EXIT_OK
+
+
+def _cmd_digest(args: argparse.Namespace) -> int:
+    print(manifest_digest(load_manifest(args.manifest)))
+    return EXIT_OK
+
+
+def _cmd_report(args: argparse.Namespace) -> int:
+    manifest = load_manifest(args.manifest)
+    text = render_csv(manifest) if args.format == "csv" else render_markdown(manifest)
+    # Always UTF-8 bytes: the console or pipe encoding must never alter file names.
+    sys.stdout.flush()
+    sys.stdout.buffer.write(text.encode("utf-8"))
+    sys.stdout.buffer.flush()
+    return EXIT_OK
+
+
+COMMANDS = {
+    "create": _cmd_create,
+    "verify": _cmd_verify,
+    "add-source": _cmd_add_source,
+    "digest": _cmd_digest,
+    "report": _cmd_report,
+}
+
+
 def _safe_streams() -> None:
     # A console or pipe that cannot show a file name must not crash the run.
     for stream in (sys.stdout, sys.stderr):
@@ -116,13 +178,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     _safe_streams()
     args = build_parser().parse_args(argv)  # argparse exits with 2 on bad arguments
     try:
-        if args.command == "create":
-            return _cmd_create(args)
-        if args.command == "verify":
-            return _cmd_verify(args)
+        return COMMANDS[args.command](args)
     except EvidexError as exc:
         print(f"evidex: error: {exc}", file=sys.stderr)
         for detail in exc.details:
             print(f"  {detail}", file=sys.stderr)
         return EXIT_USAGE
-    raise AssertionError(f"unhandled command {args.command!r}")  # pragma: no cover

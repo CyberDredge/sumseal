@@ -4,6 +4,10 @@ All notable changes to sumseal are recorded here. The format follows Keep a Chan
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-21
+
+First public release.
+
 ### Changed
 
 - A closed output pipe (for example `sumseal report X | head`) now exits 1 quietly instead of reporting an internal error. On Windows, `verify` and `create` piped to a command that exits early can still show an internal error and exit 3.

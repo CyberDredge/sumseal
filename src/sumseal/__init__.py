@@ -4,4 +4,4 @@ sumseal records file integrity only. It does not prove who created a file or
 that its content is genuine.
 """
 
-__version__ = "0.1.0.dev0"
+__version__ = "0.1.0"

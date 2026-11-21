@@ -12,11 +12,11 @@ sumseal writes a small JSON manifest of a folder: every file's path, size, SHA-2
 
 ## Install
 
-sumseal is not on PyPI yet. From a clone of this repository:
+```
+python -m pip install sumseal
+```
 
-```
-python -m pip install .
-```
+Or, from a clone of this repository, `python -m pip install .`
 
 This installs the `sumseal` command. `python -m sumseal` works too.
 
@@ -124,7 +124,7 @@ JSON, `schema_version` 1, pretty-printed with 2-space indentation. A fictional e
 ```json
 {
   "schema_version": 1,
-  "tool_version": "0.1.0.dev0",
+  "tool_version": "0.1.0",
   "created_utc": "2026-01-02T03:04:05Z",
   "collector": "Example Collector",
   "case_id": "DEMO-001",

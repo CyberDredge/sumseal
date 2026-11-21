@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-sumseal is pre-release. Only the latest commit on `main` is supported.
+Only the latest release of sumseal is supported. Fixes are made on `main` and shipped in the next release.
 
 ## Reporting a vulnerability
 

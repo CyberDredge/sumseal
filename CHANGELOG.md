@@ -6,6 +6,7 @@ All notable changes to sumseal are recorded here. The format follows Keep a Chan
 
 ### Changed
 
+- A closed output pipe (for example `sumseal report X | head`) now exits 1 quietly instead of reporting an internal error. On Windows, `verify` and `create` piped to a command that exits early can still show an internal error and exit 3.
 - `create` stops with an error, and writes nothing, if `--out` points inside the folder being recorded.
 - Unexpected errors now print `sumseal: internal error: <type>: <message>` and exit with code 3 instead of showing a traceback.
 - Renamed the project from evidex to sumseal before the first release. The command is `sumseal` and manifests are named `<folder-name>.sumseal.json`.

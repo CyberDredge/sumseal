@@ -4,6 +4,7 @@ Zero-dependency Python library and CLI that records a manifest (SHA-256, size, t
 
 ## Rules (non-negotiable)
 - **Approval first.** No commit, push, PR, merge, tag, deploy, delete, reset, rebase, branch deletion, file move, or anything touching secrets without the owner's explicit approval in that session. Say what is ready and let the owner decide.
+  - Deleting counts even for scratch files or folders you created yourself: ask first, or leave them and tell the owner.
 - **Write as if public.** No real case data, real people, real URLs, tokens, API keys, `.env` content, personal details, or email addresses anywhere (code, tests, docs, commit text). Examples use only `example.com`, `example.net`, `example.org` and made-up file names. One exception: the only real URLs allowed are the project's own Homepage and Issues links in `pyproject.toml` `[project.urls]`, and `tests/test_hygiene.py` enforces that.
 - Never mention any employer, client, contract, or employment-related detail anywhere in this repo (code, docs, LICENSE, commit messages).
 - **No network access** in code or tests. No DNS lookups.
@@ -50,4 +51,5 @@ Requires Python 3.11 or newer.
 - Renamed from evidex to sumseal on 2026-11-21 (commit 442d2fa). GitHub repository renamed to CyberDredge/sumseal and the git remote updated. The local folder is still `C:\evidex`.
 - Prior art rechecked and name checked on 2026-11-21 (see SPEC.md).
 - Approved spec changes, 2026-11-21: exit 3 for internal errors, `verify --expect-digest`, `create` refuses `--out` inside the recorded folder, `[project.urls]` in `pyproject.toml`. Windows 193 passed, 10 skipped; Linux 201 passed, 2 skipped (warnings as errors). Committed locally with owner approval; not pushed.
+- Closed output pipe, 2026-11-21: `BrokenPipeError` now exits 1 silently; on Windows, `verify`/`create` to a closed pipe still exit 3 (OSError errno 22, known limit, owner decision). Windows 202 passed, 10 skipped; Linux 210 passed, 2 skipped (warnings as errors). Committed locally with owner approval; not pushed.
 - Next, at the public flip (owner decides when): owner flips the repo public and turns on private vulnerability reporting; widen CI to Python 3.11 to 3.13 on Linux and Windows; re-add Dependabot and pin Actions to commit SHAs; owner confirms the name on the official USPTO search. Then release 0.1.0 (version, tag, CHANGELOG date, PyPI) only with owner approval.

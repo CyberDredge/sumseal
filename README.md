@@ -103,9 +103,11 @@ A changed modified time alone is printed as a note, not a failure, because copyi
 | Code | Meaning |
 |---|---|
 | 0 | Everything OK |
-| 1 | Problems found |
+| 1 | Problems found, or output cut short because the command reading it exited early (for example when `sumseal report` is piped to `head`). Nothing is printed in that case |
 | 2 | Usage or input error (including an invalid manifest) |
 | 3 | Internal error: a bug in sumseal. The message starts with `sumseal: internal error:`; please report it |
+
+On Windows, piping `verify` or `create` to a command that exits early can show an internal-error message and exit 3.
 
 ## Fail-closed rules
 

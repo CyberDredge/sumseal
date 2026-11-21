@@ -1,11 +1,13 @@
 """Command-line interface.
 
-Exit codes: 0 OK, 1 problems found, 2 usage or input error, 3 internal error.
+Exit codes: 0 OK, 1 problems found (or output cut short by a closed pipe),
+2 usage or input error, 3 internal error.
 """
 
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import sys
 from collections.abc import Sequence
@@ -34,7 +36,8 @@ def build_parser() -> argparse.ArgumentParser:
         prog="sumseal",
         description="Record a SHA-256 manifest of a folder of files and verify it later.",
         epilog=(
-            "Exit codes: 0 everything OK, 1 problems found, 2 usage or input error, "
+            "Exit codes: 0 everything OK, 1 problems found or output cut short by a "
+            "closed pipe, 2 usage or input error, "
             "3 internal error (a bug in sumseal; please report it). "
             "sumseal records file integrity only; it does not prove who made a file "
             "or that its content is genuine."
@@ -214,16 +217,38 @@ def _safe_streams() -> None:
             pass
 
 
+def _stdout_to_devnull() -> None:
+    # Point the stdout file descriptor at the null device, so the flush Python does
+    # at exit writes there instead of raising BrokenPipeError again.
+    try:
+        fd = sys.stdout.fileno()
+    except (AttributeError, OSError, ValueError):
+        return  # not a real file (for example captured in tests): nothing to redirect
+    devnull = os.open(os.devnull, os.O_WRONLY)
+    try:
+        os.dup2(devnull, fd)
+    finally:
+        os.close(devnull)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     _safe_streams()
     args = build_parser().parse_args(argv)  # argparse exits with 2 on bad arguments
     try:
-        return COMMANDS[args.command](args)
+        code = COMMANDS[args.command](args)
+        if sys.stdout is not None:  # no stdout at all (for example pythonw): nothing to flush
+            sys.stdout.flush()  # a closed pipe should surface here, not at interpreter exit
+        return code
     except SumsealError as exc:
         print(f"sumseal: error: {exc}", file=sys.stderr)
         for detail in exc.details:
             print(f"  {detail}", file=sys.stderr)
         return EXIT_USAGE
+    except BrokenPipeError:
+        # The reader went away (for example `| head`). The output was cut short, so
+        # never claim OK: exit 1, print nothing.
+        _stdout_to_devnull()
+        return EXIT_PROBLEMS
     except Exception as exc:  # a bug: report it plainly instead of a traceback
         print(f"sumseal: internal error: {type(exc).__name__}: {exc}", file=sys.stderr)
         return EXIT_INTERNAL

@@ -30,7 +30,7 @@ Requires Python 3.11 or newer.
 - `src/evidex/`: `hashing.py`, `manifest.py`, `verify.py`, `report.py`, `cli.py`, `__main__.py` (so `python -m evidex` works).
 - `tests/`: table-driven tests that follow the SPEC.md table row for row.
 - `examples/demo/`: tiny fictional files used by the README example and a test.
-- `README.md`, `SECURITY.md`, `CHANGELOG.md`, `.github/workflows/ci.yml`, `.github/dependabot.yml`.
+- `README.md`, `SECURITY.md`, `CHANGELOG.md`, `.github/workflows/ci.yml`. No Dependabot until the public flip.
 
 ## Session routine
 - Start: read this file and SPEC.md, then run `git status` and `pytest`, and say where the build stands.
@@ -43,7 +43,7 @@ Requires Python 3.11 or newer.
 - Step 2 (`create`, collision and special-file rules): done 2026-11-21, committed locally.
 - Step 3 (`verify`, results and exit codes): done 2026-11-21, committed locally.
 - Step 4 (`add-source`, `digest`, `report`): done 2026-11-21. Windows 127 passed, 7 skipped; Linux (WSL Ubuntu, Python 3.12) 133 passed, 1 skipped. Committed.
-- Step 5 (README, SECURITY.md, CHANGELOG, LICENSE, demo, CI, CLI polish): done 2026-11-21. Windows 135 passed, 7 skipped; Linux 141 passed, 1 skipped; CI job rehearsed in WSL. Not committed yet, waiting for owner approval.
+- Step 5 (README, SECURITY.md, CHANGELOG, LICENSE, demo, CI, CLI polish): done 2026-11-21, committed and pushed. Dependabot removed afterwards, to be added at the public flip.
 - Step 6: not started.
 - Linux test run (from PowerShell): `wsl -d Ubuntu -e sh -c 'cd /mnt/c/evidex && PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src ~/.venvs/evidex-test/bin/python -m pytest -q -p no:cacheprovider'`
 - Next: owner approves the step 5 commit (then push), and says "go" for step 6 (self-review, hygiene tests, dogfood run on the owner's own non-case files).

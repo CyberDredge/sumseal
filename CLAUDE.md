@@ -39,6 +39,7 @@ Requires Python 3.11 or newer.
 
 ## Build status (update at the end of each session)
 - Step 1 (scaffold, hashing core, canonical JSON and digest): done 2026-11-21, tests green locally (Python 3.13, Windows), including the owner's pre-push changes. Committed and pushed to origin/main.
-- Step 2 (`create`, collision and special-file rules): done 2026-11-21, 41 passed and 5 skipped locally (Windows; the skipped tests need Linux). Not committed yet, waiting for owner approval.
-- Steps 3 to 6: not started.
-- Next: owner reviews and approves the step 2 commit, then says "go" for step 3 (`verify`).
+- Step 2 (`create`, collision and special-file rules): done 2026-11-21, 41 passed and 5 skipped locally (Windows; the skipped tests need Linux). Committed locally, not pushed.
+- Step 3 (`verify`, results and exit codes): done 2026-11-21, 84 passed and 7 skipped locally (Windows; the skipped tests need Linux). Not committed yet, waiting for owner approval.
+- Steps 4 to 6: not started.
+- Next: owner reviews and approves the step 3 commit, then says "go" for step 4 (`add-source`, `digest`, `report`).

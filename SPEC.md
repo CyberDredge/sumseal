@@ -70,6 +70,15 @@ evidex report <manifest> [--format md|csv]
 
 A changed modified time alone is a printed note, not a failure (copying files changes it).
 
+- `verify` prints the manifest digest so it can be compared with the anchored one.
+- The manifest's `excludes` apply again, so excluded files are never NEW.
+- Items in `skipped` are checked by kind only (never hashed): same kind is OK, a different kind or a regular file is CHANGED, gone is MISSING. A recorded file that is now a symlink or special item is CHANGED. A new symlink or special item is NEW.
+- A folder that cannot be listed is UNREADABLE, and every recorded path inside it is UNREADABLE, not MISSING.
+- Only paths found by walking the folder are opened. Manifest paths are lookup keys, so a tampered manifest cannot make `verify` read outside the folder.
+- Names with control, invisible or format characters are printed escaped (for example `'report‮txt.exe'`).
+- The manifest is validated strictly before anything is compared. Invalid JSON, a UTF-8 BOM, duplicate keys, NaN or Infinity, wrong `schema_version` or `hash_algorithm`, bad field types, non-NFC, absolute or `..` paths, and duplicate paths are all errors (exit 2).
+- Names on disk that collide after case-folding or NFC/NFD, or that are not valid UTF-8, make `verify` stop with exit 2.
+
 ## Fail closed (never guess, never skip silently)
 
 - Symlinks and non-regular files make `create` stop with a list, unless `--skip-special` is given. Skipped items are then recorded in `skipped`. On Windows, every reparse point (junctions, mount points, cloud placeholder files) counts as special. Links are never followed.
@@ -110,6 +119,18 @@ A changed modified time alone is a printed note, not a failure (copying files ch
 | Unreadable file during `create` (POSIX only, skipped on Windows) | error, no manifest |
 | File name not valid UTF-8 (Linux only) | error, no manifest |
 | Output file already exists | error, existing file untouched |
+| Verify prints the manifest digest | digest equals the manifest's digest |
+| Size change, or empty file filled | CHANGED, exit 1 |
+| Unreadable subfolder at verify (POSIX only) | folder and its recorded files UNREADABLE, none MISSING, exit 1 |
+| Skipped item unchanged | OK, exit 0 |
+| Symlink added after `create` | NEW, exit 1 |
+| File replaced by a symlink | CHANGED, exit 1 |
+| Skipped item removed, or replaced by a regular file | MISSING or CHANGED, exit 1 |
+| `--exclude` at verify | excluded files are not NEW, exit 0 |
+| Colliding names at verify | exit 2 |
+| Names with control or invisible characters | printed escaped |
+| `--manifest` given, or default manifest missing | uses that file; missing manifest is exit 2 |
+| Invalid manifest (bad JSON, BOM, duplicate key, NaN, wrong schema or algorithm, bad types, unsafe or duplicate paths) | exit 2 |
 
 Every behavior change needs a row here and a test.
 
@@ -164,3 +185,4 @@ evidex records and checks file integrity. It does not prove who created a file o
 - 2026-11-21, step 1: Added the scaffold (`pyproject.toml` with setuptools build backend, no runtime deps, `pytest` as the only dev extra; `.gitignore`), `src/evidex/__init__.py` (`__version__ = "0.1.0.dev0"`), `hashing.py` (`hash_file` returns hex SHA-256 and the byte count actually read, 1 MiB chunks, OSError propagates, no skipping) and `manifest.py` (`canonical_bytes` exactly as specified, `manifest_digest`, `pretty_text` with 2-space indent). Tests cover the rows "Empty file", "File containing `abc`" and "Reformatted manifest on disk", plus chunk-boundary and exact-canonical-form checks. `cli.py`, `__main__.py`, `verify.py`, `report.py`, LICENSE and README come in their own steps. `readme` left out of `pyproject.toml` until README.md exists (step 5).
 - 2026-11-21, step 1 pre-push changes (owner request): version set to `0.1.0.dev0`; build requires `setuptools>=77` (needed for the SPDX `license = "MIT"` string); `.gitattributes` added with `* text=auto eol=lf`; `canonical_bytes` now passes `allow_nan=False`, so NaN and Infinity raise `ValueError` (new test-table row and test); removed an owner open item; CLAUDE.md now says "Do not touch any folder outside C:\evidex" instead of listing other project paths.
 - 2026-11-21, step 2: Added `create` in `manifest.py` (`build_manifest`, `write_manifest`, `create`, `find_collisions`), a CLI with only the `create` command so far (`cli.py`, `__main__.py`, `evidex` console script). It checks everything before hashing and reports all problems at once; no partial manifest is ever written. Collisions are checked per folder level on NFC-then-casefold keys, so `Docs/` vs `docs/` is caught too. Note: full Unicode case-folding also flags pairs like `straße` and `STRASSE`, which is the fail-closed choice. Decisions the spec left open: `skipped` entries are `{path, kind}`; exclude globs use `fnmatchcase` on the relative POSIX path and prune matching folders; times are whole seconds; Windows reparse points count as special (stops junctions from pulling in files from outside the folder); file names that are not valid UTF-8 are an error; `create` refuses to overwrite an existing manifest (opened with exclusive create). New test-table rows for each. On this Windows machine 41 tests pass and 5 skip (FIFO, unreadable file, undecodable name, and two case-collision-on-disk tests need Linux or a case-sensitive filesystem); CI on Linux will run them.
+- 2026-11-21, step 3: Added `verify` (`verify.py`, CLI `verify <folder> [--manifest FILE]`) and strict `load_manifest`/`validate_manifest` in `manifest.py`. The folder walk became the shared `scan_folder`; a folder or entry that cannot be read is now a separate list, which `create` still treats as fatal and `verify` reports as UNREADABLE. `verify` prints only problem lines and notes, then a count line and a one-line result. Decisions the spec left open (each now in the Verify section and the test table): the digest is printed on verify; special items are checked by kind; an unlistable folder makes its recorded files UNREADABLE instead of MISSING; manifest paths are never joined onto the folder; unprintable names are shown escaped; a UTF-8 BOM in the manifest is an error; unknown extra keys in the manifest are allowed and ignored; `files` order is not checked when loading. On this Windows machine 84 tests pass and 7 skip (POSIX-only permission, FIFO and undecodable-name tests, and case-sensitive filesystem tests). WSL Ubuntu has Python 3.12 but no pytest, so those 7 have not been run anywhere yet.

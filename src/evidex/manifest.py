@@ -14,6 +14,7 @@ import fnmatch
 import hashlib
 import json
 import os
+import re
 import stat
 import unicodedata
 from collections.abc import Iterable, Sequence
@@ -30,6 +31,7 @@ MANIFEST_SUFFIX = ".evidex.json"
 KIND_SYMLINK = "symlink"
 KIND_REPARSE_POINT = "reparse_point"
 KIND_OTHER = "other"
+SPECIAL_KINDS = (KIND_SYMLINK, KIND_REPARSE_POINT, KIND_OTHER)
 
 
 class EvidexError(Exception):
@@ -128,25 +130,29 @@ def _is_reparse_point(entry: os.DirEntry[str]) -> bool:
 # --- scanning ----------------------------------------------------------------
 
 
-class _Scan:
+class Scan:
+    """What a folder walk found. Nothing is ever dropped silently."""
+
     def __init__(self) -> None:
         self.files: list[tuple[str, str]] = []  # (manifest path, filesystem path)
-        self.special: list[dict[str, str]] = []
-        self.problems: list[str] = []
+        self.special: list[dict[str, str]] = []  # {"path", "kind"}
+        self.problems: list[str] = []  # names that cannot be recorded (always fatal)
+        self.unreadable: list[tuple[str, str]] = []  # (path, reason); "" is the root
 
 
-def _scan(root: str, patterns: Sequence[str]) -> _Scan:
-    scan = _Scan()
+def scan_folder(root: str, patterns: Sequence[str]) -> Scan:
+    """Walk ``root`` without following links, applying exclude ``patterns``."""
+    scan = Scan()
     _scan_dir(root, "", patterns, scan)
     return scan
 
 
-def _scan_dir(dir_os: str, dir_rel: str, patterns: Sequence[str], scan: _Scan) -> None:
+def _scan_dir(dir_os: str, dir_rel: str, patterns: Sequence[str], scan: Scan) -> None:
     try:
         with os.scandir(dir_os) as listing:
             entries = sorted(listing, key=lambda e: e.name)
     except OSError as exc:
-        scan.problems.append(f"{dir_rel or '.'}: cannot list folder ({_reason(exc)})")
+        scan.unreadable.append((dir_rel, f"cannot list folder ({_reason(exc)})"))
         return
 
     kept: list[tuple[os.DirEntry[str], str]] = []
@@ -180,7 +186,7 @@ def _scan_dir(dir_os: str, dir_rel: str, patterns: Sequence[str], scan: _Scan) -
             else:
                 scan.special.append({"path": rel, "kind": KIND_OTHER})
         except OSError as exc:
-            scan.problems.append(f"{rel}: cannot inspect ({_reason(exc)})")
+            scan.unreadable.append((rel, f"cannot inspect ({_reason(exc)})"))
 
 
 # --- create ------------------------------------------------------------------
@@ -220,10 +226,11 @@ def build_manifest(
 
     patterns = [unicodedata.normalize("NFC", pattern) for pattern in excludes]
     created = utc_now()
-    scan = _scan(absolute, patterns)
+    scan = scan_folder(absolute, patterns)
 
-    if scan.problems:
-        raise EvidexError("cannot create a manifest; no manifest written", scan.problems)
+    if scan.problems or scan.unreadable:
+        details = scan.problems + [f"{rel or '.'}: {why}" for rel, why in scan.unreadable]
+        raise EvidexError("cannot create a manifest; no manifest written", details)
     if scan.special and not skip_special:
         raise EvidexError(
             "found symlinks or special files; no manifest written. "
@@ -313,3 +320,135 @@ def create(
     out_path = Path(out) if out is not None else default_output_path(folder)
     digest = write_manifest(manifest, out_path)
     return out_path, digest, manifest
+
+
+# --- loading -------------------------------------------------------------------
+
+_HEX64 = re.compile(r"[0-9a-f]{64}")
+_UTC = re.compile(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ")
+
+
+def _no_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate key {key!r}")
+        result[key] = value
+    return result
+
+
+def _no_constants(name: str) -> Any:
+    raise ValueError(f"{name} is not allowed")
+
+
+def load_manifest(path: str | os.PathLike[str]) -> dict[str, Any]:
+    """Read and strictly validate a manifest file. Any doubt is an EvidexError."""
+    shown = os.fspath(path)
+    try:
+        raw = Path(path).read_bytes()
+    except FileNotFoundError:
+        raise EvidexError(f"manifest not found: {shown}") from None
+    except OSError as exc:
+        raise EvidexError(f"cannot read manifest {shown} ({_reason(exc)})") from None
+    try:
+        data = json.loads(
+            raw.decode("utf-8"),
+            object_pairs_hook=_no_duplicate_keys,
+            parse_constant=_no_constants,
+        )
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise EvidexError(f"manifest is not valid JSON: {shown}", [str(exc)]) from None
+    problems = validate_manifest(data)
+    if problems:
+        raise EvidexError(f"not a valid evidex manifest: {shown}", problems)
+    return data
+
+
+def _is_int(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _is_text(value: Any) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
+def _is_utc(value: Any) -> bool:
+    return isinstance(value, str) and _UTC.fullmatch(value) is not None
+
+
+def _path_problem(path: Any) -> str | None:
+    if not isinstance(path, str) or not path:
+        return "path must be a non-empty string"
+    if unicodedata.normalize("NFC", path) != path:
+        return f"path is not NFC-normalized: {ascii(path)}"
+    if path.startswith("/") or any(part in ("", ".", "..") for part in path.split("/")):
+        return f"path must be relative with no empty, '.' or '..' parts: {ascii(path)}"
+    return None
+
+
+def validate_manifest(data: Any) -> list[str]:
+    """Return every problem found in a parsed manifest (empty list if valid)."""
+    if not isinstance(data, dict):
+        return ["top level must be a JSON object"]
+    problems: list[str] = []
+    if not (_is_int(data.get("schema_version")) and data["schema_version"] == SCHEMA_VERSION):
+        problems.append(f"schema_version must be {SCHEMA_VERSION}")
+    if data.get("hash_algorithm") != HASH_ALGORITHM:
+        problems.append(f"hash_algorithm must be {HASH_ALGORITHM!r}")
+    for key in ("tool_version", "collector", "root_name"):
+        if not _is_text(data.get(key)):
+            problems.append(f"{key} must be a non-empty string")
+    if not _is_utc(data.get("created_utc")):
+        problems.append("created_utc must be a UTC time like 2026-01-02T03:04:05Z")
+    if "case_id" in data and not _is_text(data["case_id"]):
+        problems.append("case_id must be a non-empty string when present")
+
+    excludes = data.get("excludes")
+    if not isinstance(excludes, list) or not all(isinstance(g, str) and g for g in excludes):
+        problems.append("excludes must be a list of non-empty strings")
+
+    seen: set[str] = set()
+
+    def check_path(where: str, path: Any) -> None:
+        problem = _path_problem(path)
+        if problem:
+            problems.append(f"{where}: {problem}")
+        elif path in seen:
+            problems.append(f"{where}: duplicate path {ascii(path)}")
+        else:
+            seen.add(path)
+
+    skipped = data.get("skipped")
+    if not isinstance(skipped, list):
+        problems.append("skipped must be a list")
+        skipped = []
+    for index, item in enumerate(skipped):
+        where = f"skipped[{index}]"
+        if not isinstance(item, dict):
+            problems.append(f"{where} must be an object")
+            continue
+        check_path(where, item.get("path"))
+        if item.get("kind") not in SPECIAL_KINDS:
+            problems.append(f"{where}: kind must be one of {', '.join(SPECIAL_KINDS)}")
+
+    files = data.get("files")
+    if not isinstance(files, list):
+        problems.append("files must be a list")
+        files = []
+    for index, entry in enumerate(files):
+        where = f"files[{index}]"
+        if not isinstance(entry, dict):
+            problems.append(f"{where} must be an object")
+            continue
+        check_path(where, entry.get("path"))
+        size = entry.get("size")
+        if not (_is_int(size) and size >= 0):
+            problems.append(f"{where}: size must be a whole number of bytes, 0 or more")
+        if not (isinstance(entry.get("sha256"), str) and _HEX64.fullmatch(entry["sha256"])):
+            problems.append(f"{where}: sha256 must be 64 lowercase hex characters")
+        for key in ("mtime_utc", "hashed_utc"):
+            if not _is_utc(entry.get(key)):
+                problems.append(f"{where}: {key} must be a UTC time like 2026-01-02T03:04:05Z")
+        if "source" in entry and not isinstance(entry["source"], dict):
+            problems.append(f"{where}: source must be an object when present")
+    return problems

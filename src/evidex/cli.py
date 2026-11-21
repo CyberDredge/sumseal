@@ -7,6 +7,7 @@ import sys
 from collections.abc import Sequence
 
 from .manifest import EvidexError, create
+from .verify import PROBLEMS, RESULTS, verify
 
 EXIT_OK = 0
 EXIT_PROBLEMS = 1
@@ -37,7 +38,24 @@ def build_parser() -> argparse.ArgumentParser:
     create_cmd.add_argument("--skip-special", action="store_true",
                             help="record symlinks and special files in 'skipped' instead of stopping")
     create_cmd.add_argument("--out", metavar="FILE", help="where to write the manifest")
+
+    verify_cmd = commands.add_parser(
+        "verify",
+        help="check a folder against its manifest",
+        description=(
+            "Check FOLDER against its manifest (<folder-name>.evidex.json next to "
+            "the folder unless --manifest is given). Exit 0 if everything matches, "
+            "1 if anything is CHANGED, MISSING, NEW or UNREADABLE."
+        ),
+    )
+    verify_cmd.add_argument("folder", help="folder to check")
+    verify_cmd.add_argument("--manifest", metavar="FILE", help="manifest to check against")
     return parser
+
+
+def show(name: str) -> str:
+    """Name as printed: escaped if it has control, invisible or format characters."""
+    return name if name.isprintable() else ascii(name)
 
 
 def _cmd_create(args: argparse.Namespace) -> int:
@@ -49,7 +67,7 @@ def _cmd_create(args: argparse.Namespace) -> int:
         skip_special=args.skip_special,
         out=args.out,
     )
-    print(f"Recorded {len(manifest['files'])} files from {manifest['root_name']}")
+    print(f"Recorded {len(manifest['files'])} files from {show(manifest['root_name'])}")
     if manifest["skipped"]:
         print(f"Skipped {len(manifest['skipped'])} special items (listed in the manifest)")
     if manifest["excludes"]:
@@ -58,6 +76,31 @@ def _cmd_create(args: argparse.Namespace) -> int:
     print(f"Manifest digest (sha256): {digest}")
     print("Anchor this digest somewhere outside the folder.")
     return EXIT_OK
+
+
+def _cmd_verify(args: argparse.Namespace) -> int:
+    report = verify(args.folder, args.manifest)
+    print(f"Manifest: {report.manifest_path}")
+    print(f"Manifest digest (sha256): {report.digest}")
+    print("Compare this digest with the one you anchored when the manifest was made.")
+    problems = [f for f in report.findings if f.result in PROBLEMS]
+    if problems:
+        print()
+        width = max(len(result) for result in RESULTS)
+        for finding in problems:
+            detail = f"  ({finding.detail})" if finding.detail else ""
+            print(f"{finding.result:<{width}}  {show(finding.path)}{detail}")
+    if report.notes:
+        print()
+        for note in report.notes:
+            print(f"note: {note}")
+    print()
+    print("  ".join(f"{result} {count}" for result, count in report.counts().items()))
+    if report.ok:
+        print("Result: everything matches the manifest.")
+        return EXIT_OK
+    print("Result: problems found.")
+    return EXIT_PROBLEMS
 
 
 def _safe_streams() -> None:
@@ -75,6 +118,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         if args.command == "create":
             return _cmd_create(args)
+        if args.command == "verify":
+            return _cmd_verify(args)
     except EvidexError as exc:
         print(f"evidex: error: {exc}", file=sys.stderr)
         for detail in exc.details:

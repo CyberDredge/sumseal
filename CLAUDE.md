@@ -46,5 +46,6 @@ Requires Python 3.11 or newer.
 - Step 5 (README, SECURITY.md, CHANGELOG, LICENSE, demo, CI, CLI polish): done 2026-11-21, committed and pushed. Dependabot removed afterwards, to be added at the public flip.
 - Step 6 (self-review, hygiene tests, dogfood run): done 2026-11-21. Windows 169 passed, 10 skipped; Linux 178 passed, 1 skipped (warnings as errors). Not committed yet, waiting for owner approval.
 - Linux test run (from PowerShell): `wsl -d Ubuntu -e sh -c 'cd /mnt/c/evidex && PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src ~/.venvs/evidex-test/bin/python -m pytest -q -p no:cacheprovider'`
-- Renamed from evidex to sumseal on 2026-11-21. Owner renames the GitHub repository in its settings, then the git remote is updated.
-- Next: owner approves the rename commit (then push). Remaining for v1 (Definition of done): recheck prior art, CI green on 3.11 to 3.13 on Linux and Windows after the public flip, and the release steps, all with owner approval.
+- Renamed from evidex to sumseal on 2026-11-21 (commit 442d2fa). GitHub repository renamed to CyberDredge/sumseal and the git remote updated. The local folder is still `C:\evidex`.
+- Prior art rechecked and name checked on 2026-11-21 (see SPEC.md).
+- Next, at the public flip (owner decides when): owner flips the repo public and turns on private vulnerability reporting; widen CI to Python 3.11 to 3.13 on Linux and Windows; re-add Dependabot and pin Actions to commit SHAs; owner confirms the name on the official USPTO search. Then release 0.1.0 (version, tag, CHANGELOG date, PyPI) only with owner approval.

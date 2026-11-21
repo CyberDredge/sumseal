@@ -56,22 +56,23 @@ Each entry in `files`: `path` (POSIX style, relative, NFC-normalized), `size`, `
 
 ```
 sumseal create <folder> --collector NAME [--case ID] [--exclude GLOB]... [--skip-special] [--out FILE]
-sumseal verify <folder> [--manifest FILE]
+sumseal verify <folder> [--manifest FILE] [--expect-digest HEX]
 sumseal add-source <manifest> <relative-path> <url> --accessed TIME [--note TEXT]
 sumseal digest <manifest>
 sumseal report <manifest> [--format md|csv]
 ```
 
-- `create` writes the manifest next to the folder by default (`<folder-name>.sumseal.json` in the parent), so the manifest is never a NEW file inside the folder it describes. `--out` overrides. It prints the manifest digest.
+- `create` writes the manifest next to the folder by default (`<folder-name>.sumseal.json` in the parent), so the manifest is never a NEW file inside the folder it describes. `--out` overrides, but an `--out` path inside the folder being recorded (or the folder itself, after resolving links and, on Windows, ignoring case) is an error (exit 2) and nothing is written. It prints the manifest digest.
 - `add-source` refuses a path that is not in the manifest. It rewrites the manifest and prints the new digest. Anchor the digest only after your last edit.
   - The path must match a recorded file exactly (case-sensitive, `/` between folders; NFD input is normalized to NFC). Skipped special items cannot get a source.
   - An existing source is never overwritten (exit 2, manifest untouched).
   - The URL must have a scheme (such as `https:`) and no spaces, control or invisible characters. It is never fetched.
   - `--accessed` must be a real UTC time written exactly like `2026-01-02T03:04:05Z`. Other forms and offsets are refused, never converted.
   - The rewrite is atomic (temporary file in the same folder, then replace). The previous and new digests are both printed.
+- `verify --expect-digest HEX`: HEX must be exactly 64 lowercase hex characters, otherwise exit 2 before anything is checked. If the manifest digest differs, a `MISMATCH` line names the expected digest and the exit code is 1 (the file results are still printed). If it matches, the output says so and the exit code follows the file results.
 - `digest` prints only the digest (one line), so it can be scripted.
 - `report` writes UTF-8 to standard output, whatever the console or pipe encoding. Markdown has every manifest field, the digest, files with sources, skipped items and the disclaimer, with Markdown special characters escaped and unprintable names escaped. CSV has one row per file (`path,size,sha256,mtime_utc,hashed_utc,source_url,source_accessed_utc,source_note`). Cells starting with `=`, `+`, `-`, `@`, tab or carriage return get a leading `'` so spreadsheets do not run them as formulas.
-- Exit codes: `0` everything OK, `1` problems found, `2` usage or input error.
+- Exit codes: `0` everything OK, `1` problems found, `2` usage or input error, `3` internal error (any unexpected exception: `sumseal: internal error: <type>: <message>` on standard error, no traceback).
 
 ## Verify results
 
@@ -154,7 +155,12 @@ A changed modified time alone is a printed note, not a failure (copying files ch
 | `report` Markdown | all fields, digest, files, sources, skipped items, disclaimer; special characters escaped |
 | `report` CSV | one row per file; formula-like cells prefixed with `'` |
 | `report` output encoding | UTF-8 bytes whatever the console or pipe |
-| `--version` and `--help` | version printed; help lists the commands and exit codes; exit 0 |
+| `--version` and `--help` | version printed; help lists the commands and exit codes (0 to 3); exit 0 |
+| Unexpected exception in a command | `sumseal: internal error: <type>: <message>` on stderr, exit 3; expected errors stay exit 2 |
+| `verify --expect-digest` matches | says it matches; exit follows the file results (0, or 1 if files changed) |
+| `verify --expect-digest` differs | `MISMATCH` line with the expected digest, exit 1 |
+| `verify --expect-digest` not 64 lowercase hex characters | exit 2 |
+| `create --out` inside the folder being recorded (including the folder itself, `..` back inside, a link to it, or different case on Windows) | error, exit 2, nothing written |
 | Demo folder (`examples/demo`) | create, verify, add-source, digest and report work on a copy; edits show as CHANGED and NEW |
 | README demo values | the size and SHA-256 the README shows match the demo file |
 | `--exclude` that matches nothing | note printed (with a hint if it contains a backslash), glob still recorded, exit 0 |
@@ -164,7 +170,7 @@ A changed modified time alone is a printed note, not a failure (copying files ch
 | Hygiene: no network | tests cannot resolve names or open connections; source imports no network modules |
 | Hygiene: zero runtime dependencies | `pyproject.toml` has no dependencies; source imports only the standard library |
 | Hygiene: wording | no "court-ready" or "admissible" in code, public docs or examples; README carries the disclaimer |
-| Hygiene: URLs, email addresses, home paths | only example.com, example.net and example.org; no email addresses or user home paths |
+| Hygiene: URLs, email addresses, home paths | only example.com, example.net and example.org, except the project's own Homepage and Issues links in `pyproject.toml` `[project.urls]`, which must be exactly the GitHub repository `CyberDredge/sumseal` and its issues page; no email addresses or user home paths |
 | Hygiene: invisible characters and clean Python | `.py` files are plain ASCII and compile without warnings; no invisible or control characters in text files |
 
 Every behavior change needs a row here and a test.
@@ -230,3 +236,4 @@ sumseal records and checks file integrity. It does not prove who created a file 
 - 2026-11-21, step 6: Self-review fixes: names in `create` error lists are printed escaped; a failed write of a new manifest removes the partial file; an `--exclude` that matches nothing prints a note (with a `/` hint when it contains a backslash); `add-source` keeps the manifest's file permissions; the manifest path printed by `create` and `verify` is escaped. Known limit, now in SECURITY.md: files swapped while evidex runs (scan-then-hash race) are not detected. Hygiene tests added (`tests/test_hygiene.py`, plus `tests/conftest.py`, which blocks name lookups and connections in every test). The new ASCII check caught raw non-ASCII characters in five test files and a raw right-to-left override in this file, all written by tooling that turned `\uXXXX` escapes into real characters; all were converted back to escapes. Tests: Windows 169 passed, 10 skipped; Linux 178 passed, 1 skipped; both with warnings as errors.
 - 2026-11-21, dogfood run (owner's own non-case files: the evidex repo folder itself, 2,095 files including `.venv` and `.git`; manifests written outside the repo): `create` and `verify` each took about 1 second, all OK. A pytest run in between changed nothing detectable (rewritten caches were byte-identical), which is correct. On a full copy, an edited file showed CHANGED with the size difference, a deleted file MISSING, an added file NEW, and two mtime-only changes as notes with exit 1 overall; times converted to UTC correctly from a UTC+8 machine. Excludes such as `.venv`, `.git` and `*/__pycache__` cut it to 29 files as expected. Reports: 2,122-line Markdown, 2,096-line CSV. No bugs found. A run on a personal folder is left to the owner.
 - 2026-11-21, rename: The project is now `sumseal` (owner decision after the name check found a live US trademark and about 90 same-name GitHub repositories for `evidex`). Package `src/sumseal`, command `sumseal`, error class `SumsealError`, manifest suffix `.sumseal.json`. The manifest format is otherwise unchanged and `schema_version` stays 1. Earlier log entries keep the old name as history. The local folder `C:\evidex` and the WSL venv `~/.venvs/evidex-test` keep their names for now. The GitHub repository is renamed by the owner in its settings; the git remote is then updated.
+- 2026-11-21, approved spec changes (owner request): `main` now turns any unexpected exception into `sumseal: internal error: <type>: <message>` on stderr and exit 3 (documented in `--help`, README and here); expected errors stay exit 2. Added `verify --expect-digest HEX` (strict 64 lowercase hex, else exit 2; a different digest prints a `MISMATCH` line and exits 1 even if every file is OK; a match is confirmed). `create` now refuses an `--out` path inside the folder being recorded, checked before scanning so nothing is hashed or written; paths are compared after resolving links, and with case ignored on Windows (`os.path.normcase`). Case-insensitive folders on macOS are not caught by that comparison. Added `[project.urls]` (Homepage, Issues) to `pyproject.toml`; the URL hygiene test now allows exactly those two links, in that file only, and checks they are unchanged. New test-table rows for each. Tests: Windows 193 passed, 10 skipped; Linux (WSL Ubuntu, Python 3.12) 201 passed, 2 skipped; both with warnings as errors. While writing the tests, the editing tools again turned escape sequences into raw characters; the hygiene test caught one, and that test now builds the character with `chr(0xFF10)`.

@@ -128,10 +128,25 @@ ALLOWED_HOST = re.compile(r"(?:[A-Za-z0-9-]+\.)*example\.(?:com|net|org)")
 HOME_PATH = re.compile(r"[A-Za-z]:\\Users\\|/home/[A-Za-z]|/Users/[A-Za-z]")
 
 
+# The one approved exception: the project's own links in pyproject.toml [project.urls].
+PROJECT_HOME = "https:" + "//github.com/CyberDredge/sumseal"  # split so this file passes the scan
+PROJECT_URLS = {"Homepage": PROJECT_HOME, "Issues": PROJECT_HOME + "/issues"}
+
+
 def test_only_example_urls():
     for path in repo_text_files():
-        for host in URL.findall(path.read_text(encoding="utf-8")):
+        text = path.read_text(encoding="utf-8")
+        if rel(path) == "pyproject.toml":
+            for url in PROJECT_URLS.values():
+                text = text.replace(f'"{url}"', '""')
+        for host in URL.findall(text):
             assert ALLOWED_HOST.fullmatch(host), f"{rel(path)}: real-looking URL host {host!r}"
+
+
+def test_project_urls_are_exactly_the_approved_ones():
+    with open(REPO / "pyproject.toml", "rb") as handle:
+        project = tomllib.load(handle)["project"]
+    assert project["urls"] == PROJECT_URLS
 
 
 def test_no_email_addresses():

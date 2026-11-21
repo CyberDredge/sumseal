@@ -37,7 +37,30 @@ def test_help_lists_commands_and_exit_codes(capsys):
     assert code == 0
     for command in ("create", "verify", "add-source", "digest", "report"):
         assert command in out
-    assert "0 everything OK, 1 problems found, 2 usage or input error" in " ".join(out.split())
+    assert ("0 everything OK, 1 problems found, 2 usage or input error, 3 internal error"
+            in " ".join(out.split()))
+
+
+# Row: Unexpected exception -----------------------------------------------------------
+
+
+def test_unexpected_exception_is_internal_error_exit_3(tmp_path, capsys, monkeypatch):
+    import sumseal.cli as cli
+
+    def broken(args):
+        raise RuntimeError("something broke")
+
+    monkeypatch.setitem(cli.COMMANDS, "digest", broken)
+    code, out, err = run(capsys, "digest", tmp_path / "any.sumseal.json")
+    assert code == 3
+    assert out == ""
+    assert err == "sumseal: internal error: RuntimeError: something broke\n"
+
+
+def test_expected_errors_stay_exit_2(tmp_path, capsys):
+    code, out, err = run(capsys, "digest", tmp_path / "missing.sumseal.json")
+    assert code == 2
+    assert "internal error" not in err
 
 
 # Row: Demo folder ------------------------------------------------------------------------

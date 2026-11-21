@@ -74,14 +74,15 @@ $ sumseal report examples/demo.sumseal.json --format md
 
 ```
 sumseal create <folder> --collector NAME [--case ID] [--exclude GLOB]... [--skip-special] [--out FILE]
-sumseal verify <folder> [--manifest FILE]
+sumseal verify <folder> [--manifest FILE] [--expect-digest HEX]
 sumseal add-source <manifest> <relative-path> <url> --accessed TIME [--note TEXT]
 sumseal digest <manifest>
 sumseal report <manifest> [--format md|csv]
 sumseal --version
 ```
 
-- `create` refuses to overwrite an existing manifest. `--exclude` globs are matched case-sensitively against each relative path (`*` also matches `/`), a matching folder is left out whole, and the globs are recorded in the manifest so `verify` applies them again.
+- `create` refuses to overwrite an existing manifest, and refuses an `--out` path inside the folder being recorded (nothing is written). `--exclude` globs are matched case-sensitively against each relative path (`*` also matches `/`), a matching folder is left out whole, and the globs are recorded in the manifest so `verify` applies them again.
+- `verify --expect-digest HEX` compares the manifest digest with the one you anchored (64 lowercase hex characters). A different digest prints a `MISMATCH` line and exits 1; a match is confirmed in the output.
 - `add-source` needs the path exactly as it appears in the manifest (use `/` between folders) and a UTC time written like `2026-01-02T03:04:05Z`. It never overwrites a source that is already there.
 - `report` writes UTF-8 to standard output. In CSV, cells that start with `=`, `+`, `-` or `@` get a leading `'` so spreadsheets do not run them as formulas.
 
@@ -104,6 +105,7 @@ A changed modified time alone is printed as a note, not a failure, because copyi
 | 0 | Everything OK |
 | 1 | Problems found |
 | 2 | Usage or input error (including an invalid manifest) |
+| 3 | Internal error: a bug in sumseal. The message starts with `sumseal: internal error:`; please report it |
 
 ## Fail-closed rules
 

@@ -1,8 +1,12 @@
-"""Command-line interface. Exit codes: 0 OK, 1 problems found, 2 usage or input error."""
+"""Command-line interface.
+
+Exit codes: 0 OK, 1 problems found, 2 usage or input error, 3 internal error.
+"""
 
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from collections.abc import Sequence
 
@@ -14,6 +18,15 @@ from .verify import PROBLEMS, RESULTS, verify
 EXIT_OK = 0
 EXIT_PROBLEMS = 1
 EXIT_USAGE = 2
+EXIT_INTERNAL = 3
+
+HEX_DIGEST = re.compile(r"[0-9a-f]{64}")
+
+
+def _hex_digest(text: str) -> str:
+    if not HEX_DIGEST.fullmatch(text):
+        raise argparse.ArgumentTypeError("must be exactly 64 lowercase hex characters (0-9, a-f)")
+    return text
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -21,7 +34,8 @@ def build_parser() -> argparse.ArgumentParser:
         prog="sumseal",
         description="Record a SHA-256 manifest of a folder of files and verify it later.",
         epilog=(
-            "Exit codes: 0 everything OK, 1 problems found, 2 usage or input error. "
+            "Exit codes: 0 everything OK, 1 problems found, 2 usage or input error, "
+            "3 internal error (a bug in sumseal; please report it). "
             "sumseal records file integrity only; it does not prove who made a file "
             "or that its content is genuine."
         ),
@@ -53,11 +67,15 @@ def build_parser() -> argparse.ArgumentParser:
         description=(
             "Check FOLDER against its manifest (<folder-name>.sumseal.json next to "
             "the folder unless --manifest is given). Exit 0 if everything matches, "
-            "1 if anything is CHANGED, MISSING, NEW or UNREADABLE."
+            "1 if anything is CHANGED, MISSING, NEW or UNREADABLE, or if "
+            "--expect-digest does not match the manifest digest."
         ),
     )
     verify_cmd.add_argument("folder", help="folder to check")
     verify_cmd.add_argument("--manifest", metavar="FILE", help="manifest to check against")
+    verify_cmd.add_argument("--expect-digest", type=_hex_digest, metavar="HEX",
+                            help="the digest you anchored (64 lowercase hex characters); "
+                                 "a different manifest digest is a problem")
 
     source_cmd = commands.add_parser(
         "add-source",
@@ -120,7 +138,14 @@ def _cmd_verify(args: argparse.Namespace) -> int:
     report = verify(args.folder, args.manifest)
     print(f"Manifest: {show(str(report.manifest_path))}")
     print(f"Manifest digest (sha256): {report.digest}")
-    print("Compare this digest with the one you anchored when the manifest was made.")
+    digest_mismatch = False
+    if args.expect_digest is None:
+        print("Compare this digest with the one you anchored when the manifest was made.")
+    elif args.expect_digest == report.digest:
+        print("Expected digest: matches the manifest digest.")
+    else:
+        digest_mismatch = True
+        print(f"MISMATCH  manifest digest differs from --expect-digest {args.expect_digest}")
     problems = [f for f in report.findings if f.result in PROBLEMS]
     if problems:
         print()
@@ -134,6 +159,10 @@ def _cmd_verify(args: argparse.Namespace) -> int:
             print(f"note: {note}")
     print()
     print("  ".join(f"{result} {count}" for result, count in report.counts().items()))
+    if digest_mismatch:
+        files = "files match the manifest" if report.ok else "problems found in the files too"
+        print(f"Result: the manifest digest does not match the expected digest ({files}).")
+        return EXIT_PROBLEMS
     if report.ok:
         print("Result: everything matches the manifest.")
         return EXIT_OK
@@ -195,3 +224,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         for detail in exc.details:
             print(f"  {detail}", file=sys.stderr)
         return EXIT_USAGE
+    except Exception as exc:  # a bug: report it plainly instead of a traceback
+        print(f"sumseal: internal error: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return EXIT_INTERNAL

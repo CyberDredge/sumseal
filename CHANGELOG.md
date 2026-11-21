@@ -6,6 +6,8 @@ All notable changes to sumseal are recorded here. The format follows Keep a Chan
 
 ### Changed
 
+- `create` stops with an error, and writes nothing, if `--out` points inside the folder being recorded.
+- Unexpected errors now print `sumseal: internal error: <type>: <message>` and exit with code 3 instead of showing a traceback.
 - Renamed the project from evidex to sumseal before the first release. The command is `sumseal` and manifests are named `<folder-name>.sumseal.json`.
 
 ### Added
@@ -16,4 +18,6 @@ All notable changes to sumseal are recorded here. The format follows Keep a Chan
 - `sumseal digest`: prints the manifest digest.
 - `sumseal report`: Markdown or CSV report, always UTF-8.
 - `sumseal --version`.
+- `sumseal verify --expect-digest HEX`: compares the manifest digest with the anchored one; a mismatch prints `MISMATCH` and exits 1.
+- Project links (homepage and issues) in the package metadata.
 - Tiny fictional demo folder in `examples/demo`.

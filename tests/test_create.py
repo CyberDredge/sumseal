@@ -435,3 +435,63 @@ def test_failed_write_leaves_no_partial_manifest(tmp_path, capsys, monkeypatch):
     assert code == 2
     assert "No space left on device" in err
     assert not manifest_path(folder).exists()
+
+
+# Row: Output path inside the recorded folder ----------------------------------------
+
+
+@pytest.mark.parametrize(
+    "out",
+    ["inside.sumseal.json", "sub/deeper.sumseal.json", "sub/../back.sumseal.json", "."],
+    ids=["top-level", "subfolder", "dot-dot-back-inside", "the-folder-itself"],
+)
+def test_out_inside_recorded_folder_is_error(tmp_path, capsys, out):
+    folder = make(tmp_path / "f", {"a.txt": b"abc", "sub/b.txt": b"bravo"})
+    before = sorted(p.relative_to(folder) for p in folder.rglob("*"))
+
+    code, stdout, err = run(capsys, "create", folder, "--collector", COLLECTOR,
+                            "--out", os.path.join(str(folder), out))
+
+    assert code == 2
+    assert "cannot be written inside the folder it records" in err
+    assert sorted(p.relative_to(folder) for p in folder.rglob("*")) == before
+    assert not manifest_path(folder).exists()
+
+
+def test_out_inside_recorded_folder_relative_path(tmp_path, capsys, monkeypatch):
+    folder = make(tmp_path / "f", {"a.txt": b"abc"})
+    monkeypatch.chdir(folder)
+    code, stdout, err = run(capsys, "create", ".", "--collector", COLLECTOR,
+                            "--out", "m.sumseal.json")
+    assert code == 2
+    assert "cannot be written inside the folder it records" in err
+    assert not (folder / "m.sumseal.json").exists()
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="case-insensitive paths on Windows")
+def test_out_inside_recorded_folder_different_case_windows(tmp_path, capsys):
+    folder = make(tmp_path / "Case", {"a.txt": b"abc"})
+    out = tmp_path / "CASE" / "m.sumseal.json"
+    code, stdout, err = run(capsys, "create", folder, "--collector", COLLECTOR, "--out", out)
+    assert code == 2
+    assert not (folder / "m.sumseal.json").exists()
+
+
+def test_out_beside_folder_with_shared_name_prefix_is_fine(tmp_path, capsys):
+    # "f-manifests" starts with "f" but is not inside "f".
+    folder = make(tmp_path / "f", {"a.txt": b"abc"})
+    (tmp_path / "f-manifests").mkdir()
+    out = tmp_path / "f-manifests" / "f.sumseal.json"
+    code, stdout, err = run(capsys, "create", folder, "--collector", COLLECTOR, "--out", out)
+    assert code == 0, err
+    assert out.is_file()
+
+
+def test_out_inside_folder_through_a_symlink_is_error(tmp_path, capsys):
+    folder = make(tmp_path / "f", {"a.txt": b"abc"})
+    symlink_or_skip(folder, tmp_path / "alias", is_dir=True)
+    code, stdout, err = run(capsys, "create", folder, "--collector", COLLECTOR,
+                            "--out", tmp_path / "alias" / "m.sumseal.json")
+    assert code == 2
+    assert "cannot be written inside the folder it records" in err
+    assert not (folder / "m.sumseal.json").exists()

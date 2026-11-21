@@ -344,3 +344,63 @@ def test_verify_bad_arguments_exit_2(tmp_path, capsys, args):
     places = {"{folder}": str(folder), "{missing}": str(tmp_path / "missing")}
     code, out, err = run(capsys, *[places.get(a, a) for a in args])
     assert code == 2
+
+
+# Row: verify --expect-digest ----------------------------------------------------------
+
+
+def digest_of(folder):
+    return manifest_digest(json.loads(manifest_path(folder).read_text(encoding="utf-8")))
+
+
+def test_expect_digest_matches(tmp_path, capsys):
+    folder = created(tmp_path, capsys)
+    code, out, err = run(capsys, "verify", folder, "--expect-digest", digest_of(folder))
+    assert code == 0, err
+    assert "Expected digest: matches the manifest digest." in out
+    assert "MISMATCH" not in out
+    assert "Result: everything matches the manifest." in out
+
+
+def test_expect_digest_mismatch_exit_1(tmp_path, capsys):
+    folder = created(tmp_path, capsys)
+    other = "0" * 64
+    code, out, err = run(capsys, "verify", folder, "--expect-digest", other)
+    assert code == 1
+    assert f"MISMATCH  manifest digest differs from --expect-digest {other}" in out
+    assert f"Manifest digest (sha256): {digest_of(folder)}" in out
+    assert "(files match the manifest)" in out
+
+
+def test_expect_digest_mismatch_with_file_problems(tmp_path, capsys):
+    folder = created(tmp_path, capsys)
+    (folder / "a.txt").write_bytes(b"abd")
+    code, out, err = run(capsys, "verify", folder, "--expect-digest", "f" * 64)
+    assert code == 1
+    assert "MISMATCH" in out
+    assert line("CHANGED", "a.txt") in out
+    assert "(problems found in the files too)" in out
+
+
+def test_expect_digest_matches_but_files_changed_exit_1(tmp_path, capsys):
+    folder = created(tmp_path, capsys)
+    (folder / "a.txt").write_bytes(b"abd")
+    code, out, err = run(capsys, "verify", folder, "--expect-digest", digest_of(folder))
+    assert code == 1
+    assert "Expected digest: matches the manifest digest." in out
+    assert "Result: problems found." in out
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["", "abc", "0" * 63, "0" * 65, "A" * 64, "g" * 64, " " + "0" * 63, "0" * 63 + "\n",
+     chr(0xFF10) * 64],
+    ids=["empty", "short", "63", "65", "uppercase", "not-hex", "space", "newline",
+         "fullwidth-digits"],
+)
+def test_expect_digest_bad_value_exit_2(tmp_path, capsys, value):
+    folder = created(tmp_path, capsys)
+    code, out, err = run(capsys, "verify", folder, "--expect-digest", value)
+    assert code == 2
+    assert "64 lowercase hex characters" in err
+    assert "Result:" not in out

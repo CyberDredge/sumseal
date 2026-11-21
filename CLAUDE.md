@@ -4,7 +4,7 @@ Zero-dependency Python library and CLI that records a manifest (SHA-256, size, t
 
 ## Rules (non-negotiable)
 - **Approval first.** No commit, push, PR, merge, tag, deploy, delete, reset, rebase, branch deletion, file move, or anything touching secrets without the owner's explicit approval in that session. Say what is ready and let the owner decide.
-- **Write as if public.** No real case data, real people, real URLs, tokens, API keys, `.env` content, personal details, or email addresses anywhere (code, tests, docs, commit text). Examples use only `example.com`, `example.net`, `example.org` and made-up file names.
+- **Write as if public.** No real case data, real people, real URLs, tokens, API keys, `.env` content, personal details, or email addresses anywhere (code, tests, docs, commit text). Examples use only `example.com`, `example.net`, `example.org` and made-up file names. One exception: the only real URLs allowed are the project's own Homepage and Issues links in `pyproject.toml` `[project.urls]`, and `tests/test_hygiene.py` enforces that.
 - Never mention any employer, client, contract, or employment-related detail anywhere in this repo (code, docs, LICENSE, commit messages).
 - **No network access** in code or tests. No DNS lookups.
 - **Zero runtime dependencies** (standard library only). Dev dependency: `pytest` only.
@@ -39,14 +39,15 @@ Requires Python 3.11 or newer.
 - End every session with a short recap in this exact shape: **Done / Not done / Needs approval / Next step.** Keep it plain, not clinical. Include exact paths and the commit hash if one was made.
 
 ## Build status (update at the end of each session)
-- History was rewritten locally on 2026-11-21 to remove personal details from every commit. GitHub still has the old first commit. The first push after the rewrite must be `git push --force-with-lease origin main`. The owner allows pushes as needed (2026-11-21). GitHub Actions minutes are used up until 2026-12-14, so CI may not run before then.
+- History was rewritten on 2026-11-21 to remove personal details from every commit, and the rewritten history is now on GitHub (`main` up to date with `origin/main`). No force push is needed or allowed; see Branch protection. GitHub Actions minutes are used up until 2026-12-14, so CI may not run before then.
 - Step 1 (scaffold, hashing core, canonical JSON and digest): done 2026-11-21, committed locally.
 - Step 2 (`create`, collision and special-file rules): done 2026-11-21, committed locally.
 - Step 3 (`verify`, results and exit codes): done 2026-11-21, committed locally.
 - Step 4 (`add-source`, `digest`, `report`): done 2026-11-21. Windows 127 passed, 7 skipped; Linux (WSL Ubuntu, Python 3.12) 133 passed, 1 skipped. Committed.
 - Step 5 (README, SECURITY.md, CHANGELOG, LICENSE, demo, CI, CLI polish): done 2026-11-21, committed and pushed. Dependabot removed afterwards, to be added at the public flip.
-- Step 6 (self-review, hygiene tests, dogfood run): done 2026-11-21. Windows 169 passed, 10 skipped; Linux 178 passed, 1 skipped (warnings as errors). Not committed yet, waiting for owner approval.
+- Step 6 (self-review, hygiene tests, dogfood run): done 2026-11-21. Windows 169 passed, 10 skipped; Linux 178 passed, 1 skipped (warnings as errors). Committed (a4a92ed) and pushed.
 - Linux test run (from PowerShell): `wsl -d Ubuntu -e sh -c 'cd /mnt/c/evidex && PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src ~/.venvs/evidex-test/bin/python -m pytest -q -p no:cacheprovider'`
 - Renamed from evidex to sumseal on 2026-11-21 (commit 442d2fa). GitHub repository renamed to CyberDredge/sumseal and the git remote updated. The local folder is still `C:\evidex`.
 - Prior art rechecked and name checked on 2026-11-21 (see SPEC.md).
+- Approved spec changes, 2026-11-21: exit 3 for internal errors, `verify --expect-digest`, `create` refuses `--out` inside the recorded folder, `[project.urls]` in `pyproject.toml`. Windows 193 passed, 10 skipped; Linux 201 passed, 2 skipped (warnings as errors). Committed locally with owner approval; not pushed.
 - Next, at the public flip (owner decides when): owner flips the repo public and turns on private vulnerability reporting; widen CI to Python 3.11 to 3.13 on Linux and Windows; re-add Dependabot and pin Actions to commit SHAs; owner confirms the name on the official USPTO search. Then release 0.1.0 (version, tag, CHANGELOG date, PyPI) only with owner approval.

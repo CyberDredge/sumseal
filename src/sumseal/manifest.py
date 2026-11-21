@@ -322,6 +322,16 @@ def write_manifest(manifest: dict[str, Any], out: str | os.PathLike[str]) -> str
     return digest
 
 
+def is_inside(path: str | os.PathLike[str], folder: str | os.PathLike[str]) -> bool:
+    """True if ``path`` is ``folder`` itself or anywhere below it (links resolved)."""
+    folder_real = os.path.normcase(os.path.realpath(folder))
+    path_real = os.path.normcase(os.path.realpath(path))
+    try:
+        return os.path.commonpath([folder_real, path_real]) == folder_real
+    except ValueError:  # different drives on Windows
+        return False
+
+
 def create(
     folder: str | os.PathLike[str],
     *,
@@ -333,6 +343,11 @@ def create(
     notes: list[str] | None = None,
 ) -> tuple[Path, str, dict[str, Any]]:
     """Build and write a manifest. Returns (output path, digest, manifest)."""
+    if out is not None and os.path.isdir(folder) and is_inside(out, folder):
+        raise SumsealError(
+            "the manifest cannot be written inside the folder it records; "
+            f"no manifest written: {_shown(os.fspath(out))}"
+        )
     manifest = build_manifest(
         folder,
         collector=collector,

@@ -213,6 +213,8 @@ evidex records and checks file integrity. It does not prove who created a file o
 ## Open items for the owner
 
 - Check the name on GitHub and for trademark conflicts before launch.
+  - Checked 2026-11-21 (quick search, not legal advice). PyPI: `evidex` still free. GitHub: about 90 repositories named Evidex, several in the same space (digital evidence, forensic OSINT, chain of custody, file intake), and the `evidex` account name is taken. Trademark: a live US registration for EVIDEX (word mark, Reg. No. 5059267, Class 35 online database for medical, pharmaceutical and life-science business intelligence), now used for a pharmacovigilance software product. Older EVIDEX marks are dead. Status should be confirmed on the USPTO site.
+  - Recommendation: choose a new name before the public flip and before registering anything on PyPI, while renaming is cheap. Owner decides; anything serious goes to counsel.
 - Register the PyPI name only at release.
 
 ## Build decisions log

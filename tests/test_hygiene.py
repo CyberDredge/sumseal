@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parent.parent
-SRC = REPO / "src" / "evidex"
+SRC = REPO / "src" / "sumseal"
 SKIP_DIRS = {".git", ".venv", ".claude", "__pycache__", ".pytest_cache", "build", "dist"}
 TEXT_SUFFIXES = {".py", ".md", ".toml", ".yml", ".yaml", ".txt", ".json", ".cfg", ".ini"}
 TEXT_NAMES = {"LICENSE", ".gitignore", ".gitattributes"}
@@ -69,7 +69,7 @@ def imported_modules(path):
 def test_source_imports_stdlib_only_and_no_network(path):
     for name in imported_modules(path):
         top = name.split(".")[0]
-        if top in ("__future__", "evidex"):
+        if top in ("__future__", "sumseal"):
             continue
         assert top in sys.stdlib_module_names, f"{path.name}: non-stdlib import {name}"
         for banned in NETWORK_MODULES:
@@ -111,7 +111,7 @@ def test_no_legal_claims_in_code_or_public_docs():
 def test_readme_carries_the_required_disclaimer():
     readme = " ".join((REPO / "README.md").read_text(encoding="utf-8").split())
     for sentence in (
-        "evidex records and checks file integrity.",
+        "sumseal records and checks file integrity.",
         "It does not prove who created a file or that its content is genuine, "
         "and it is not legal advice.",
         "Whether a manifest is accepted as evidence is decided by courts and counsel, "

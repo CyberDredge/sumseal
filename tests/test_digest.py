@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from evidex.manifest import canonical_bytes, manifest_digest, pretty_text
+from sumseal.manifest import canonical_bytes, manifest_digest, pretty_text
 
 SAMPLE = {
     "schema_version": 1,
@@ -34,7 +34,7 @@ SAMPLE = {
 
 def test_reformatted_manifest_same_digest(tmp_path):
     # SPEC.md row: "Reformatted manifest on disk" -> same digest.
-    on_disk = tmp_path / "demo-case.evidex.json"
+    on_disk = tmp_path / "demo-case.sumseal.json"
     on_disk.write_text(pretty_text(SAMPLE), encoding="utf-8")
     original = manifest_digest(json.loads(on_disk.read_text(encoding="utf-8")))
 

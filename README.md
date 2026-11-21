@@ -1,10 +1,10 @@
-# evidex
+# sumseal
 
 Record exactly which files you collected and what state they were in, then check later that nothing changed. Zero dependencies, deterministic output, plain-language results.
 
-> **What evidex is and is not.** evidex records and checks file integrity. It does not prove who created a file or that its content is genuine, and it is not legal advice. Whether a manifest is accepted as evidence is decided by courts and counsel, not by this tool.
+> **What sumseal is and is not.** sumseal records and checks file integrity. It does not prove who created a file or that its content is genuine, and it is not legal advice. Whether a manifest is accepted as evidence is decided by courts and counsel, not by this tool.
 
-evidex writes a small JSON manifest of a folder: every file's path, size, SHA-256, modified time and the time it was hashed, plus where a file came from if you record it. Later, `evidex verify` tells you, file by file, what is OK, CHANGED, MISSING, NEW or UNREADABLE.
+sumseal writes a small JSON manifest of a folder: every file's path, size, SHA-256, modified time and the time it was hashed, plus where a file came from if you record it. Later, `sumseal verify` tells you, file by file, what is OK, CHANGED, MISSING, NEW or UNREADABLE.
 
 - Standard library only. Python 3.11 or newer. Windows, macOS and Linux.
 - No network access, ever. URLs you record are stored, never fetched.
@@ -12,24 +12,26 @@ evidex writes a small JSON manifest of a folder: every file's path, size, SHA-25
 
 ## Install
 
-evidex is not on PyPI yet. From a clone of this repository:
+sumseal is not on PyPI yet. From a clone of this repository:
 
 ```
 python -m pip install .
 ```
 
-This installs the `evidex` command. `python -m evidex` works too.
+This installs the `sumseal` command. `python -m sumseal` works too.
+
+On Windows with Smart App Control turned on, the `sumseal` command may be blocked, because the small launcher that pip creates is not signed. Run `python -m sumseal` instead; it does the same thing.
 
 ## 60-second example
 
 The repository has a tiny folder of fictional files in `examples/demo`.
 
-**1. Record the folder.** The manifest is written next to the folder (here `examples/demo.evidex.json`), never inside it.
+**1. Record the folder.** The manifest is written next to the folder (here `examples/demo.sumseal.json`), never inside it.
 
 ```
-$ evidex create examples/demo --collector "Example Collector" --case DEMO-001
+$ sumseal create examples/demo --collector "Example Collector" --case DEMO-001
 Recorded 3 files from demo
-Manifest: examples/demo.evidex.json
+Manifest: examples/demo.sumseal.json
 Manifest digest (sha256): 8084a7ad...046e0a
 Anchor this digest somewhere outside the folder.
 ```
@@ -39,8 +41,8 @@ Anchor this digest somewhere outside the folder.
 **3. Check the folder later.**
 
 ```
-$ evidex verify examples/demo
-Manifest: examples/demo.evidex.json
+$ sumseal verify examples/demo
+Manifest: examples/demo.sumseal.json
 Manifest digest (sha256): 8084a7ad...046e0a
 Compare this digest with the one you anchored when the manifest was made.
 
@@ -61,9 +63,9 @@ Result: problems found.
 **4. Optionally record a source, then report.**
 
 ```
-$ evidex add-source examples/demo.evidex.json saved-page.txt https://example.com/post/42 --accessed 2026-01-02T03:04:05Z --note "fictional"
-$ evidex digest examples/demo.evidex.json
-$ evidex report examples/demo.evidex.json --format md
+$ sumseal add-source examples/demo.sumseal.json saved-page.txt https://example.com/post/42 --accessed 2026-01-02T03:04:05Z --note "fictional"
+$ sumseal digest examples/demo.sumseal.json
+$ sumseal report examples/demo.sumseal.json --format md
 ```
 
 `add-source` changes the manifest, so it prints a new digest. Anchor the digest only after your last edit.
@@ -71,12 +73,12 @@ $ evidex report examples/demo.evidex.json --format md
 ## Commands
 
 ```
-evidex create <folder> --collector NAME [--case ID] [--exclude GLOB]... [--skip-special] [--out FILE]
-evidex verify <folder> [--manifest FILE]
-evidex add-source <manifest> <relative-path> <url> --accessed TIME [--note TEXT]
-evidex digest <manifest>
-evidex report <manifest> [--format md|csv]
-evidex --version
+sumseal create <folder> --collector NAME [--case ID] [--exclude GLOB]... [--skip-special] [--out FILE]
+sumseal verify <folder> [--manifest FILE]
+sumseal add-source <manifest> <relative-path> <url> --accessed TIME [--note TEXT]
+sumseal digest <manifest>
+sumseal report <manifest> [--format md|csv]
+sumseal --version
 ```
 
 - `create` refuses to overwrite an existing manifest. `--exclude` globs are matched case-sensitively against each relative path (`*` also matches `/`), a matching folder is left out whole, and the globs are recorded in the manifest so `verify` applies them again.

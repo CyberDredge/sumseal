@@ -6,8 +6,8 @@ import unicodedata
 
 import pytest
 
-from evidex.cli import main
-from evidex.manifest import manifest_digest, validate_manifest
+from sumseal.cli import main
+from sumseal.manifest import manifest_digest, validate_manifest
 
 COLLECTOR = "Example Collector"
 URL = "https://example.com/post/42"
@@ -33,7 +33,7 @@ def case(tmp_path, capsys):
     (folder / "caf\u00e9.txt").write_bytes(b"coffee")
     code, out, err = run(capsys, "create", folder, "--collector", COLLECTOR)
     assert code == 0, err
-    return folder, tmp_path / "case.evidex.json"
+    return folder, tmp_path / "case.sumseal.json"
 
 
 def load(path):
@@ -122,7 +122,7 @@ def test_add_source_on_skipped_item_exit_2(tmp_path, capsys):
     except (OSError, NotImplementedError) as exc:
         pytest.skip(f"cannot create symlinks here: {exc}")
     assert run(capsys, "create", folder, "--collector", COLLECTOR, "--skip-special")[0] == 0
-    manifest = tmp_path / "case.evidex.json"
+    manifest = tmp_path / "case.sumseal.json"
     before = manifest.read_bytes()
 
     code, out, err = run(capsys, "add-source", manifest, "link.txt", URL, "--accessed", WHEN)

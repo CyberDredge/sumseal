@@ -1,4 +1,4 @@
-# evidex: spec (DRAFT v0.1)
+# sumseal: spec (DRAFT v0.1)
 
 Status: approved picks recorded 2026-11-21. Source of truth for the build. Update the "Build decisions log" at the bottom as you go.
 
@@ -10,7 +10,7 @@ Record exactly which files you collected and what state they were in, then prove
 
 - Capture tools exist: Bellingcat's Auto Archiver (archives URLs), Forensic OSINT and Hunchly (commercial page capture).
 - Validators exist for a single tool's own captures (for example CaseCapture's validation page).
-- evidex does neither. It is a small integrity manifest for files you already have, from any source.
+- sumseal does neither. It is a small integrity manifest for files you already have, from any source.
 - Recheck prior art once more before the public launch. This was a quick search, not a survey.
 
 Recheck 2026-11-21 (after step 6; generic web searches, read from result summaries, not a full survey):
@@ -18,8 +18,8 @@ Recheck 2026-11-21 (after step 6; generic web searches, read from result summari
 - Folder hash-and-audit tools already exist: `hashdeep` audit mode (fails on changed, new or missing files), `sha256sum -c` (does not report new files), BagIt and bagit-python (archival packages with checksum manifests), cataloger (reports missing, extra and mismatched files), summain (manifests compared with diff), and filepack (BLAKE3).
 - Closest overlap: blazehash, an open-source Rust CLI that is hashdeep-compatible, supports SHA-256 and BLAKE3, can sign manifests with Ed25519 and makes an HTML chain-of-custody report.
 - CaseCapture's validation tool checks only CaseCapture's own capture packages (SHA-256, reports missing, modified and unexpected files).
-- What evidex still adds: standard library only and small enough to audit in one sitting; a per-file source record (URL, access time, note); strict fail-closed rules (special files, case and Unicode collisions, unreadable input, strict manifest loading); a canonical manifest digest meant to be anchored outside the folder; plain-language results. It does not do signing (non-goal for v1) or archive packaging.
-- Do not claim evidex is the only or first tool of its kind. Position it as a small, strict, dependency-free integrity manifest with source records.
+- What sumseal still adds: standard library only and small enough to audit in one sitting; a per-file source record (URL, access time, note); strict fail-closed rules (special files, case and Unicode collisions, unreadable input, strict manifest loading); a canonical manifest digest meant to be anchored outside the folder; plain-language results. It does not do signing (non-goal for v1) or archive packaging.
+- Do not claim sumseal is the only or first tool of its kind. Position it as a small, strict, dependency-free integrity manifest with source records.
 
 ## Goals
 
@@ -55,14 +55,14 @@ Each entry in `files`: `path` (POSIX style, relative, NFC-normalized), `size`, `
 ## CLI
 
 ```
-evidex create <folder> --collector NAME [--case ID] [--exclude GLOB]... [--skip-special] [--out FILE]
-evidex verify <folder> [--manifest FILE]
-evidex add-source <manifest> <relative-path> <url> --accessed TIME [--note TEXT]
-evidex digest <manifest>
-evidex report <manifest> [--format md|csv]
+sumseal create <folder> --collector NAME [--case ID] [--exclude GLOB]... [--skip-special] [--out FILE]
+sumseal verify <folder> [--manifest FILE]
+sumseal add-source <manifest> <relative-path> <url> --accessed TIME [--note TEXT]
+sumseal digest <manifest>
+sumseal report <manifest> [--format md|csv]
 ```
 
-- `create` writes the manifest next to the folder by default (`<folder-name>.evidex.json` in the parent), so the manifest is never a NEW file inside the folder it describes. `--out` overrides. It prints the manifest digest.
+- `create` writes the manifest next to the folder by default (`<folder-name>.sumseal.json` in the parent), so the manifest is never a NEW file inside the folder it describes. `--out` overrides. It prints the manifest digest.
 - `add-source` refuses a path that is not in the manifest. It rewrites the manifest and prints the new digest. Anchor the digest only after your last edit.
   - The path must match a recorded file exactly (case-sensitive, `/` between folders; NFD input is normalized to NFC). Skipped special items cannot get a source.
   - An existing source is never overwritten (exit 2, manifest untouched).
@@ -172,7 +172,7 @@ Every behavior change needs a row here and a test.
 ## Repo layout
 
 ```
-src/evidex/{__init__,__main__,hashing,manifest,verify,report,cli}.py
+src/sumseal/{__init__,__main__,hashing,manifest,verify,report,cli}.py
 tests/
 examples/demo/        (tiny fictional text files)
 README.md  SECURITY.md  CHANGELOG.md  LICENSE (MIT)  CLAUDE.md  SPEC.md  pyproject.toml
@@ -192,7 +192,7 @@ Cut features, not days, if time runs short. Release steps (flip public, tag, PyP
 
 ## README disclaimer (required, plain language)
 
-evidex records and checks file integrity. It does not prove who created a file or that its content is genuine, and it is not legal advice. Whether a manifest is accepted as evidence is decided by courts and counsel, not by this tool. Never describe evidex as "court-ready" or "admissible" anywhere.
+sumseal records and checks file integrity. It does not prove who created a file or that its content is genuine, and it is not legal advice. Whether a manifest is accepted as evidence is decided by courts and counsel, not by this tool. Never describe sumseal as "court-ready" or "admissible" anywhere.
 
 ## Definition of done (v1)
 
@@ -203,7 +203,7 @@ evidex records and checks file integrity. It does not prove who created a file o
 
 ## Decisions (resolved 2026-11-21)
 
-- Name: `evidex`. Free on PyPI as of 2026-11-21. GitHub and trademark not checked.
+- Name: `sumseal` (renamed from `evidex` on 2026-11-21 after the name check). Quick checks on 2026-11-21: free on PyPI, no GitHub repositories and the account name free, no trademark or product found under that name. Confirm on the official USPTO search before launch; not legal advice.
 - RFC 3161 timestamping: v0.2, not v0.1.
 - Build folder: `C:\evidex`, no OneDrive.
 - Repo: private until the owner flips it public at launch.
@@ -229,3 +229,4 @@ evidex records and checks file integrity. It does not prove who created a file o
 - 2026-11-21, after step 5: Removed `.github/dependabot.yml` (owner decision). While private it only watched two Actions already pinned to major tags, and it opens pull requests, which this repo does not use. Add it back at the public flip, ideally together with pinning Actions to commit SHAs.
 - 2026-11-21, step 6: Self-review fixes: names in `create` error lists are printed escaped; a failed write of a new manifest removes the partial file; an `--exclude` that matches nothing prints a note (with a `/` hint when it contains a backslash); `add-source` keeps the manifest's file permissions; the manifest path printed by `create` and `verify` is escaped. Known limit, now in SECURITY.md: files swapped while evidex runs (scan-then-hash race) are not detected. Hygiene tests added (`tests/test_hygiene.py`, plus `tests/conftest.py`, which blocks name lookups and connections in every test). The new ASCII check caught raw non-ASCII characters in five test files and a raw right-to-left override in this file, all written by tooling that turned `\uXXXX` escapes into real characters; all were converted back to escapes. Tests: Windows 169 passed, 10 skipped; Linux 178 passed, 1 skipped; both with warnings as errors.
 - 2026-11-21, dogfood run (owner's own non-case files: the evidex repo folder itself, 2,095 files including `.venv` and `.git`; manifests written outside the repo): `create` and `verify` each took about 1 second, all OK. A pytest run in between changed nothing detectable (rewritten caches were byte-identical), which is correct. On a full copy, an edited file showed CHANGED with the size difference, a deleted file MISSING, an added file NEW, and two mtime-only changes as notes with exit 1 overall; times converted to UTC correctly from a UTC+8 machine. Excludes such as `.venv`, `.git` and `*/__pycache__` cut it to 29 files as expected. Reports: 2,122-line Markdown, 2,096-line CSV. No bugs found. A run on a personal folder is left to the owner.
+- 2026-11-21, rename: The project is now `sumseal` (owner decision after the name check found a live US trademark and about 90 same-name GitHub repositories for `evidex`). Package `src/sumseal`, command `sumseal`, error class `SumsealError`, manifest suffix `.sumseal.json`. The manifest format is otherwise unchanged and `schema_version` stays 1. Earlier log entries keep the old name as history. The local folder `C:\evidex` and the WSL venv `~/.venvs/evidex-test` keep their names for now. The GitHub repository is renamed by the owner in its settings; the git remote is then updated.

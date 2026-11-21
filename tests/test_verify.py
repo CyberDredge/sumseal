@@ -7,8 +7,8 @@ import unicodedata
 
 import pytest
 
-from evidex.cli import main
-from evidex.manifest import manifest_digest, pretty_text
+from sumseal.cli import main
+from sumseal.manifest import manifest_digest, pretty_text
 
 COLLECTOR = "Example Collector"
 BASE = {"a.txt": b"abc", "sub/b.txt": b"bravo", ".hidden": b""}
@@ -37,7 +37,7 @@ def make(root, files):
 
 
 def manifest_path(folder):
-    return folder.parent / (folder.name + ".evidex.json")
+    return folder.parent / (folder.name + ".sumseal.json")
 
 
 def created(tmp_path, capsys, *extra, files=None):
@@ -329,7 +329,7 @@ def test_invalid_manifest_exit_2(tmp_path, capsys, mutation):
     code, out, err = run(capsys, "verify", folder)
 
     assert code == 2
-    assert err.startswith("evidex: error: ")
+    assert err.startswith("sumseal: error: ")
 
 
 # Row: Bad arguments (verify) ------------------------------------------------------------

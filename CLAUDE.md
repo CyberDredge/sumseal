@@ -1,4 +1,4 @@
-# CLAUDE.md: evidex
+# CLAUDE.md: sumseal
 
 Zero-dependency Python library and CLI that records a manifest (SHA-256, size, times, optional source) of a folder of files and verifies it later. `SPEC.md` is the source of truth. Owner: CyberDredge (GitHub). Repo location: `C:\evidex` (Windows). The repo is private until the owner flips it public at launch.
 
@@ -11,7 +11,7 @@ Zero-dependency Python library and CLI that records a manifest (SHA-256, size, t
 - **Fail closed.** Never guess. Ambiguous or unreadable input is an error or an explicit result, never silently skipped.
 - **Every behavior change needs a row in the SPEC.md test table and a test.**
 - Write invisible, control and look-alike characters in tests and code as `\uXXXX` escapes, never raw.
-- **Never claim "court-ready", "admissible", or legal authenticity** in code, docs, or messages. evidex records integrity only.
+- **Never claim "court-ready", "admissible", or legal authenticity** in code, docs, or messages. sumseal records integrity only.
 - Stay inside `C:\evidex`. Do not touch any folder outside C:\evidex.
 - Keep it small. If something is not in SPEC.md, ask before adding it.
 - **CI budget.** While the repo is private, CI is one Linux job on Python 3.12 only. No Windows or macOS runners, no version matrix, no larger runners, no scheduled workflows, until the owner flips the repo public. Always run the full `pytest` locally before asking to push, because GitHub Actions minutes may be used up and CI may not run. Do not open PRs; the owner pushes straight to `main` after approving.
@@ -27,7 +27,7 @@ Requires Python 3.11 or newer.
 
 ## Where things are
 - `SPEC.md`: design, manifest format, CLI, required test table, build order, decisions log at the bottom.
-- `src/evidex/`: `hashing.py`, `manifest.py`, `verify.py`, `report.py`, `cli.py`, `__main__.py` (so `python -m evidex` works).
+- `src/sumseal/`: `hashing.py`, `manifest.py`, `verify.py`, `report.py`, `cli.py`, `__main__.py` (so `python -m sumseal` works).
 - `tests/`: table-driven tests that follow the SPEC.md table row for row.
 - `examples/demo/`: tiny fictional files used by the README example and a test.
 - `README.md`, `SECURITY.md`, `CHANGELOG.md`, `.github/workflows/ci.yml`. No Dependabot until the public flip.
@@ -46,4 +46,5 @@ Requires Python 3.11 or newer.
 - Step 5 (README, SECURITY.md, CHANGELOG, LICENSE, demo, CI, CLI polish): done 2026-11-21, committed and pushed. Dependabot removed afterwards, to be added at the public flip.
 - Step 6 (self-review, hygiene tests, dogfood run): done 2026-11-21. Windows 169 passed, 10 skipped; Linux 178 passed, 1 skipped (warnings as errors). Not committed yet, waiting for owner approval.
 - Linux test run (from PowerShell): `wsl -d Ubuntu -e sh -c 'cd /mnt/c/evidex && PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src ~/.venvs/evidex-test/bin/python -m pytest -q -p no:cacheprovider'`
-- Next: owner approves the step 6 commit (then push). Remaining for v1 (Definition of done): recheck prior art, CI green on 3.11 to 3.13 on Linux and Windows after the public flip, and the release steps, all with owner approval.
+- Renamed from evidex to sumseal on 2026-11-21. Owner renames the GitHub repository in its settings, then the git remote is updated.
+- Next: owner approves the rename commit (then push). Remaining for v1 (Definition of done): recheck prior art, CI green on 3.11 to 3.13 on Linux and Windows after the public flip, and the release steps, all with owner approval.

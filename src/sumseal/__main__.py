@@ -1,4 +1,4 @@
-"""Allow ``python -m evidex``."""
+"""Allow ``python -m sumseal``."""
 
 from .cli import main
 

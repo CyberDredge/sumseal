@@ -15,7 +15,7 @@ from typing import Any
 
 from .hashing import hash_file
 from .manifest import (
-    EvidexError,
+    SumsealError,
     default_output_path,
     format_utc,
     load_manifest,
@@ -70,7 +70,7 @@ def verify(
     """Verify ``folder`` against its manifest and return every finding."""
     absolute = os.path.abspath(folder)
     if not os.path.isdir(absolute):
-        raise EvidexError(f"not a folder: {os.fspath(folder)}")
+        raise SumsealError(f"not a folder: {os.fspath(folder)}")
     path = Path(manifest_path) if manifest_path is not None else default_output_path(folder)
     manifest = load_manifest(path)
     report = VerifyReport(manifest_path=path, digest=manifest_digest(manifest), manifest=manifest)
@@ -78,7 +78,7 @@ def verify(
     patterns = [unicodedata.normalize("NFC", p) for p in manifest["excludes"]]
     scan = scan_folder(absolute, patterns)
     if scan.problems:
-        raise EvidexError("cannot verify: the folder has names that cannot be matched", scan.problems)
+        raise SumsealError("cannot verify: the folder has names that cannot be matched", scan.problems)
 
     recorded_files = {entry["path"]: entry for entry in manifest["files"]}
     recorded_special = {item["path"]: item["kind"] for item in manifest["skipped"]}

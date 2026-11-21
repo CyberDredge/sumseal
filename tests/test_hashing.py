@@ -4,7 +4,7 @@ import hashlib
 
 import pytest
 
-from evidex.hashing import CHUNK_SIZE, hash_file
+from sumseal.hashing import CHUNK_SIZE, hash_file
 
 # (SPEC.md row, file content, expected sha256)
 HASH_ROWS = [

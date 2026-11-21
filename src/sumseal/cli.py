@@ -7,7 +7,7 @@ import sys
 from collections.abc import Sequence
 
 from . import __version__
-from .manifest import EvidexError, add_source, create, load_manifest, manifest_digest
+from .manifest import SumsealError, add_source, create, load_manifest, manifest_digest
 from .report import render_csv, render_markdown
 from .verify import PROBLEMS, RESULTS, verify
 
@@ -18,15 +18,15 @@ EXIT_USAGE = 2
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="evidex",
+        prog="sumseal",
         description="Record a SHA-256 manifest of a folder of files and verify it later.",
         epilog=(
             "Exit codes: 0 everything OK, 1 problems found, 2 usage or input error. "
-            "evidex records file integrity only; it does not prove who made a file "
+            "sumseal records file integrity only; it does not prove who made a file "
             "or that its content is genuine."
         ),
     )
-    parser.add_argument("--version", action="version", version=f"evidex {__version__}")
+    parser.add_argument("--version", action="version", version=f"sumseal {__version__}")
     commands = parser.add_subparsers(dest="command", required=True, metavar="COMMAND")
 
     create_cmd = commands.add_parser(
@@ -34,7 +34,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="record a manifest of a folder",
         description=(
             "Record every file in FOLDER. The manifest is written next to the "
-            "folder as <folder-name>.evidex.json unless --out is given."
+            "folder as <folder-name>.sumseal.json unless --out is given."
         ),
     )
     create_cmd.add_argument("folder", help="folder to record")
@@ -51,7 +51,7 @@ def build_parser() -> argparse.ArgumentParser:
         "verify",
         help="check a folder against its manifest",
         description=(
-            "Check FOLDER against its manifest (<folder-name>.evidex.json next to "
+            "Check FOLDER against its manifest (<folder-name>.sumseal.json next to "
             "the folder unless --manifest is given). Exit 0 if everything matches, "
             "1 if anything is CHANGED, MISSING, NEW or UNREADABLE."
         ),
@@ -190,8 +190,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)  # argparse exits with 2 on bad arguments
     try:
         return COMMANDS[args.command](args)
-    except EvidexError as exc:
-        print(f"evidex: error: {exc}", file=sys.stderr)
+    except SumsealError as exc:
+        print(f"sumseal: error: {exc}", file=sys.stderr)
         for detail in exc.details:
             print(f"  {detail}", file=sys.stderr)
         return EXIT_USAGE

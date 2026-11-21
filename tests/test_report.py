@@ -6,9 +6,9 @@ import json
 
 import pytest
 
-from evidex.cli import main
-from evidex.manifest import create, manifest_digest
-from evidex.report import CSV_COLUMNS, DISCLAIMER, render_csv, render_markdown
+from sumseal.cli import main
+from sumseal.manifest import create, manifest_digest
+from sumseal.report import CSV_COLUMNS, DISCLAIMER, render_csv, render_markdown
 
 COLLECTOR = "Example Collector"
 SHA_ABC = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
@@ -89,7 +89,7 @@ def test_markdown_report_contents():
         skipped=[{"path": "link.txt", "kind": "symlink"}],
     )
     text = render_markdown(manifest)
-    assert text.startswith("# evidex manifest report\n")
+    assert text.startswith("# sumseal manifest report\n")
     for expected in (
         "| Folder | demo-case |",
         "| Collector | Example Collector |",
@@ -158,12 +158,12 @@ def test_report_cli_writes_utf8(manifest_file, capsysbinary, fmt):
     assert code == 0, err
     text = out.decode("utf-8")  # strict: fails if anything was not UTF-8
     assert "\u00e9t\u00e9.txt" in text
-    assert ("# evidex manifest report" in text) == (fmt == "md")
+    assert ("# sumseal manifest report" in text) == (fmt == "md")
 
 
 def test_report_default_is_markdown(manifest_file, capsysbinary):
     assert main(["report", str(manifest_file)]) == 0
-    assert capsysbinary.readouterr().out.startswith(b"# evidex manifest report")
+    assert capsysbinary.readouterr().out.startswith(b"# sumseal manifest report")
 
 
 @pytest.mark.parametrize(

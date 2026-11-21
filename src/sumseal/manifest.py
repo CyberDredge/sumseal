@@ -28,7 +28,7 @@ from . import __version__
 from .hashing import HASH_ALGORITHM, hash_file
 
 SCHEMA_VERSION = 1
-MANIFEST_SUFFIX = ".evidex.json"
+MANIFEST_SUFFIX = ".sumseal.json"
 
 KIND_SYMLINK = "symlink"
 KIND_REPARSE_POINT = "reparse_point"
@@ -36,7 +36,7 @@ KIND_OTHER = "other"
 SPECIAL_KINDS = (KIND_SYMLINK, KIND_REPARSE_POINT, KIND_OTHER)
 
 
-class EvidexError(Exception):
+class SumsealError(Exception):
     """Usage or input error. The CLI prints it with its details and exits with 2."""
 
     def __init__(self, message: str, details: Iterable[str] = ()) -> None:
@@ -198,7 +198,7 @@ def _scan_dir(dir_os: str, dir_rel: str, patterns: Sequence[str], scan: Scan) ->
 
 
 def default_output_path(folder: str | os.PathLike[str]) -> Path:
-    """``<folder-name>.evidex.json`` in the folder's parent."""
+    """``<folder-name>.sumseal.json`` in the folder's parent."""
     absolute = Path(os.path.abspath(folder))
     return absolute.parent / (absolute.name + MANIFEST_SUFFIX)
 
@@ -214,22 +214,22 @@ def build_manifest(
 ) -> dict[str, Any]:
     """Scan and hash ``folder`` and return the manifest as a dict.
 
-    Raises EvidexError (with every problem listed) instead of returning a
+    Raises SumsealError (with every problem listed) instead of returning a
     partial manifest. Harmless observations (an exclude that matched nothing)
     are appended to ``notes`` when a list is given.
     """
     absolute = os.path.abspath(folder)
     if not os.path.isdir(absolute):
-        raise EvidexError(f"not a folder: {os.fspath(folder)}")
+        raise SumsealError(f"not a folder: {os.fspath(folder)}")
     root_name = unicodedata.normalize("NFC", os.path.basename(absolute))
     if not root_name:
-        raise EvidexError("cannot record a drive or filesystem root; pick a folder")
+        raise SumsealError("cannot record a drive or filesystem root; pick a folder")
     if not collector or not collector.strip():
-        raise EvidexError("--collector must not be empty")
+        raise SumsealError("--collector must not be empty")
     if case_id is not None and not case_id.strip():
-        raise EvidexError("--case must not be empty when given")
+        raise SumsealError("--case must not be empty when given")
     if any(not pattern for pattern in excludes):
-        raise EvidexError("--exclude must not be an empty pattern")
+        raise SumsealError("--exclude must not be an empty pattern")
 
     patterns = [unicodedata.normalize("NFC", pattern) for pattern in excludes]
     created = utc_now()
@@ -237,15 +237,15 @@ def build_manifest(
 
     if scan.problems or scan.unreadable:
         details = scan.problems + [f"{_shown(rel or '.')}: {why}" for rel, why in scan.unreadable]
-        raise EvidexError("cannot create a manifest; no manifest written", details)
+        raise SumsealError("cannot create a manifest; no manifest written", details)
     if scan.special and not skip_special:
-        raise EvidexError(
+        raise SumsealError(
             "found symlinks or special files; no manifest written. "
             "Use --skip-special to record them in 'skipped' and leave them out",
             [f"{_shown(item['path'])} ({item['kind']})" for item in scan.special],
         )
     if not scan.files:
-        raise EvidexError(f"no files to record in {root_name}; no manifest written")
+        raise SumsealError(f"no files to record in {root_name}; no manifest written")
 
     entries: list[dict[str, Any]] = []
     unreadable: list[str] = []
@@ -266,7 +266,7 @@ def build_manifest(
             }
         )
     if unreadable:
-        raise EvidexError("unreadable files; no manifest written", unreadable)
+        raise SumsealError("unreadable files; no manifest written", unreadable)
     if notes is not None:
         for original, pattern in zip(excludes, patterns):
             if pattern not in scan.matched_patterns:
@@ -303,11 +303,11 @@ def write_manifest(manifest: dict[str, Any], out: str | os.PathLike[str]) -> str
     try:
         handle = open(out, "xb")
     except FileExistsError:
-        raise EvidexError(
+        raise SumsealError(
             f"output file already exists, not overwriting: {os.fspath(out)}"
         ) from None
     except OSError as exc:
-        raise EvidexError(f"cannot write {os.fspath(out)} ({_reason(exc)})") from None
+        raise SumsealError(f"cannot write {os.fspath(out)} ({_reason(exc)})") from None
     try:
         with handle:
             handle.write(data)
@@ -318,7 +318,7 @@ def write_manifest(manifest: dict[str, Any], out: str | os.PathLike[str]) -> str
             os.unlink(out)  # we created it, so a partial file is ours to remove
         except OSError:
             pass
-        raise EvidexError(f"cannot write {os.fspath(out)} ({_reason(exc)})") from None
+        raise SumsealError(f"cannot write {os.fspath(out)} ({_reason(exc)})") from None
     return digest
 
 
@@ -366,14 +366,14 @@ def _no_constants(name: str) -> Any:
 
 
 def load_manifest(path: str | os.PathLike[str]) -> dict[str, Any]:
-    """Read and strictly validate a manifest file. Any doubt is an EvidexError."""
+    """Read and strictly validate a manifest file. Any doubt is an SumsealError."""
     shown = os.fspath(path)
     try:
         raw = Path(path).read_bytes()
     except FileNotFoundError:
-        raise EvidexError(f"manifest not found: {shown}") from None
+        raise SumsealError(f"manifest not found: {shown}") from None
     except OSError as exc:
-        raise EvidexError(f"cannot read manifest {shown} ({_reason(exc)})") from None
+        raise SumsealError(f"cannot read manifest {shown} ({_reason(exc)})") from None
     try:
         data = json.loads(
             raw.decode("utf-8"),
@@ -381,10 +381,10 @@ def load_manifest(path: str | os.PathLike[str]) -> dict[str, Any]:
             parse_constant=_no_constants,
         )
     except (UnicodeDecodeError, ValueError) as exc:
-        raise EvidexError(f"manifest is not valid JSON: {shown}", [str(exc)]) from None
+        raise SumsealError(f"manifest is not valid JSON: {shown}", [str(exc)]) from None
     problems = validate_manifest(data)
     if problems:
-        raise EvidexError(f"not a valid evidex manifest: {shown}", problems)
+        raise SumsealError(f"not a valid sumseal manifest: {shown}", problems)
     return data
 
 
@@ -496,7 +496,7 @@ def parse_utc(value: str) -> str:
             raise ValueError
         datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ")
     except (TypeError, ValueError):
-        raise EvidexError(
+        raise SumsealError(
             f"time must be UTC in the form 2026-01-02T03:04:05Z, got {ascii(value)}"
         ) from None
     return value
@@ -526,7 +526,7 @@ def replace_manifest(manifest: dict[str, Any], path: str | os.PathLike[str]) -> 
     """
     problems = validate_manifest(manifest)
     if problems:  # never write something load_manifest would reject
-        raise EvidexError("refusing to write an invalid manifest", problems)
+        raise SumsealError("refusing to write an invalid manifest", problems)
     data = pretty_text(manifest).encode("utf-8")
     target = Path(path)
     handle = tempfile.NamedTemporaryFile(
@@ -544,7 +544,7 @@ def replace_manifest(manifest: dict[str, Any], path: str | os.PathLike[str]) -> 
             os.unlink(handle.name)
         except OSError:
             pass
-        raise EvidexError(f"cannot rewrite {os.fspath(path)} ({_reason(exc)})") from None
+        raise SumsealError(f"cannot rewrite {os.fspath(path)} ({_reason(exc)})") from None
     return manifest_digest(manifest)
 
 
@@ -565,28 +565,28 @@ def add_source(
 ) -> tuple[str, str]:
     """Record where one file came from. Returns (old digest, new digest).
 
-    Refuses (EvidexError, manifest untouched) if the path is not a recorded
+    Refuses (SumsealError, manifest untouched) if the path is not a recorded
     file or already has a source: an existing source is never overwritten.
     """
     manifest = load_manifest(manifest_path)
     old_digest = manifest_digest(manifest)
     problem = url_problem(url)
     if problem:
-        raise EvidexError(problem)
+        raise SumsealError(problem)
     accessed = parse_utc(accessed)
     if note is not None and not note.strip():
-        raise EvidexError("--note must not be empty when given")
+        raise SumsealError("--note must not be empty when given")
 
     key = unicodedata.normalize("NFC", rel_path)
     entry = next((e for e in manifest["files"] if e["path"] == key), None)
     if entry is None:
         if any(item["path"] == key for item in manifest["skipped"]):
-            raise EvidexError(f"{_shown(key)} is a skipped special item, not a recorded file")
+            raise SumsealError(f"{_shown(key)} is a skipped special item, not a recorded file")
         hint = ["use / between folders, as the manifest does"] if "\\" in rel_path else []
-        raise EvidexError(f"path is not in the manifest: {_shown(rel_path)}", hint)
+        raise SumsealError(f"path is not in the manifest: {_shown(rel_path)}", hint)
     if "source" in entry:
         existing = entry["source"]
-        raise EvidexError(
+        raise SumsealError(
             f"{_shown(key)} already has a source; not changing it",
             [f"{name}: {_shown(str(existing[name]))}" for name in ("url", "accessed_utc", "note")
              if name in existing],

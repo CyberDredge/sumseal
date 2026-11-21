@@ -8,9 +8,9 @@ import sys
 
 import pytest
 
-from evidex import __version__
-from evidex.cli import main
-from evidex.manifest import find_collisions, manifest_digest
+from sumseal import __version__
+from sumseal.cli import main
+from sumseal.manifest import find_collisions, manifest_digest
 
 UTC = re.compile(r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
 SHA_ABC = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
@@ -37,7 +37,7 @@ def make(root, files):
 
 
 def manifest_path(folder):
-    return folder.parent / (folder.name + ".evidex.json")
+    return folder.parent / (folder.name + ".sumseal.json")
 
 
 def load(path):
@@ -133,7 +133,7 @@ def test_case_id_is_optional_and_out_is_honoured(tmp_path, capsys):
 def test_python_dash_m_works(tmp_path):
     folder = make(tmp_path / "f", {"a.txt": b"abc"})
     result = subprocess.run(
-        [sys.executable, "-m", "evidex", "create", str(folder), "--collector", COLLECTOR],
+        [sys.executable, "-m", "sumseal", "create", str(folder), "--collector", COLLECTOR],
         capture_output=True, text=True, encoding="utf-8",
     )
     assert result.returncode == 0, result.stderr
@@ -423,7 +423,7 @@ def test_invisible_characters_in_create_errors_are_escaped(tmp_path, capsys):
 
 
 def test_failed_write_leaves_no_partial_manifest(tmp_path, capsys, monkeypatch):
-    import evidex.manifest as manifest_module
+    import sumseal.manifest as manifest_module
 
     folder = make(tmp_path / "f", {"a.txt": b"abc"})
 

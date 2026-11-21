@@ -6,7 +6,7 @@ import pytest
 
 
 def _blocked(*args, **kwargs):
-    raise RuntimeError("network access is not allowed in evidex tests")
+    raise RuntimeError("network access is not allowed in sumseal tests")
 
 
 @pytest.fixture(autouse=True)

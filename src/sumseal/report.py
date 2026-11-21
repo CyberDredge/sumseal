@@ -10,7 +10,7 @@ from typing import Any
 from .manifest import manifest_digest
 
 DISCLAIMER = (
-    "evidex records and checks file integrity. It does not prove who created a file "
+    "sumseal records and checks file integrity. It does not prove who created a file "
     "or that its content is genuine, and it is not legal advice."
 )
 
@@ -55,7 +55,7 @@ def render_markdown(manifest: dict[str, Any]) -> str:
         ("Skipped special items", len(manifest["skipped"])),
         ("Excludes", ", ".join(excludes) if excludes else "(none)"),
     ]
-    lines = ["# evidex manifest report", "", "| Field | Value |", "|---|---|"]
+    lines = ["# sumseal manifest report", "", "| Field | Value |", "|---|---|"]
     lines += [f"| {name} | {_md(value)} |" for name, value in rows]
     lines += [
         "", "## Files", "",

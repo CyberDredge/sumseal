@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from evidex import __version__
-from evidex.cli import main
-from evidex.hashing import hash_file
+from sumseal import __version__
+from sumseal.cli import main
+from sumseal.hashing import hash_file
 
 REPO = Path(__file__).resolve().parent.parent
 DEMO = REPO / "examples" / "demo"
@@ -29,7 +29,7 @@ def run(capsys, *args):
 def test_version(capsys):
     code, out, err = run(capsys, "--version")
     assert code == 0
-    assert out == f"evidex {__version__}\n"
+    assert out == f"sumseal {__version__}\n"
 
 
 def test_help_lists_commands_and_exit_codes(capsys):
@@ -46,7 +46,7 @@ def test_help_lists_commands_and_exit_codes(capsys):
 def test_demo_folder_end_to_end(tmp_path, capsys):
     demo = tmp_path / "demo"
     shutil.copytree(DEMO, demo)  # never write a manifest into the repository
-    manifest = tmp_path / "demo.evidex.json"
+    manifest = tmp_path / "demo.sumseal.json"
 
     code, out, err = run(capsys, "create", demo, "--collector", "Example Collector", "--case", "DEMO-001")
     assert code == 0, err
